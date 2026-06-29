@@ -202,7 +202,7 @@
   <path d="M 660 462 C 660 430, 343 430, 343 420" fill="none" stroke="#f0883e" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar-bounce)"/>
   <text x="430" y="442" class="arrow-label" style="fill:#f0883e">bounce → Ready</text>
 
-  <text x="40" y="600" class="col-head">label 設計 (= 状態を記録するが、 状態遷移トリガーにはしない、 §14)</text>
+  <text x="40" y="600" class="col-head">label 設計 (= 状態を記録するが、 状態遷移トリガーにはしない、 §15)</text>
 
   <g transform="translate(40, 612)">
     <rect x="0" y="0" width="290" height="84" fill="#0d1117" stroke="#56d364" stroke-width="1.5" rx="6"/>

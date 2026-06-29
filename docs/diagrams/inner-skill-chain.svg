@@ -197,4 +197,5 @@
   <text x="40" y="700" class="legend">▸ Phase 1 で「実装系 request」は $task-routing が拾い、「相談系 request」は $intent-clarify が拾う (= 入口 2 つ、 one-directional に hand-off)</text>
   <text x="40" y="718" class="legend">▸ Phase 2 の subagent は全員が共同。 影響範囲の最終判定は各 teammate が自分の専門領域で行う (= SPOF 解消)</text>
   <text x="40" y="736" class="legend">▸ Phase 3 で着地した Completion Check は cron で精査 (= 4 証跡裏取り) → forward/bounce/escalate の verdict 3-way、 詳細は俯瞰図 1/2 §13</text>
+  <text x="40" y="754" class="legend">▸ 着手 Plan / Plan 変動 / 完了 の 3 イベントで外部記録 (= §14)。 delegate-slice は $task-slicing、 delegate-single / Lead-direct は $task-routing が投稿担当</text>
 </svg>
