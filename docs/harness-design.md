@@ -282,7 +282,42 @@ boundary skill (= 例: `$prepare-uat`) が着地させた要求を、 別の sch
 
 未達で Ready に差し戻しても **worktree は破棄しない**。 再 pick した session が repo state (= Resume 戦略 B、 §8) から現状を復元して続きを進められる。 差し戻しは 「やり直し」 ではなく 「未完を Ready に戻して継続」。
 
-## 14. 採用しない選択
+## 14. session 透明性の規約 (= plan / wave 変動を外部記録に残す)
+
+session が途中で死んでも **外部記録 (= Issue コメント / commit message / wave-status file 等、 プロジェクトが保有する記録メディア) だけ追えば最新の Plan / Wave 構成 / 進捗地点が分かる** 状態にするための運用規約。 §2 「State is on disk, not in context」 の帰結。 透明性 (= 何を着手し、 どう Plan が変わり、 どこで引き継ぐか) を上げる。
+
+### 投稿タイミング (= 3 種類のイベントだけ記録、 他は記録しない)
+
+| イベント | 担当 skill | 内容 |
+|---|---|---|
+| 着手時 | verdict に応じて `$task-routing` (= `Lead-direct` / `delegate-single`) または `$task-slicing` (= `delegate-slice`) | Plan (= wave 構成 / Agent chain / Execution mode / ADR)。 1 ループ 1 回のみ |
+| Plan 変動時 | `$task-slicing` (= 再スライス時) または `$wave-status` (= 直接 mark で wave dropped/blocked/追加/順序変更) | 変更点 + 更新後の plan |
+| 完了時 | boundary skill (= 例: `$prepare-uat`) | UAT パッケージ + 進捗地点 / 残タスク / 注意点 (= 完了レポートに統合、 別記録にしない) |
+
+**done / in-progress の単純進行では記録しない** (= wave が予定通り進んだだけでは外部記録を増やさない、 ノイズになるため)。 記録するのは plan 変動イベント (= dropped / blocked / 追加 / 順序変更) と着手 / 完了の節目のみ。
+
+### 責務分離 (= Plan 変動の二重投稿排除)
+
+再スライスのフロー (= `$task-slicing` 再呼び出し → plan 更新 → `$wave-status mark` で wave dropped/blocked) では、 **`$task-slicing` が Plan 変動記録を投稿する担当**。 `$wave-status` は再スライス経由で呼ばれた場合は **投稿しない** (= `$task-slicing` 側が投稿済み)。 `$wave-status` が投稿するのは、 **`$task-slicing` を経由しない直接 mark で wave が dropped/blocked/追加 された場合のみ**。
+
+両 skill が独立に 「plan 変動 = 投稿」 を持つため、 この担当分離が無いと同一イベントで二重投稿する。
+
+### 二重投稿排除の verdict 別ルール
+
+`delegate-slice` の着手 Plan は `$task-slicing` のみが投稿する (= `$task-routing` は投稿しない、 明示スキップ)。 `delegate-single` / `Lead-direct` は `$task-routing` が軽量版 (= wave なし、 アプローチ + Agent chain + ADR) を投稿。
+
+### 条件節 (= 他 project への誤投稿防止)
+
+`$task-routing` / `$task-slicing` / `$wave-status` は **複数プロジェクトで共用される汎用 skill** (= 本 repo 配下に置かれる universal な存在)。 外部記録への投稿は以下の **2 条件の AND** が確定した場合のみ、 それ以外はスキップ:
+
+- (1) **外側レイヤー (= boundary skill) から hand-off された context である** (= 要求 ID / プロジェクト identifier が明示的に注入されている。 過去 context の偶然のマッチでは不可)。
+- (2) **対象プロジェクトが外部記録メディアを持つことが hand-off で明示されている** (= リポジトリ名 / Issue 番号 / 投稿先 API 等)。
+
+どちらか未確定なら投稿しない (= 想定外のプロジェクトで投稿 API が誤爆するのを防ぐ。 各 skill の Boundary に明記する)。
+
+具体的な投稿先 (= Issue コメント / commit message / Slack / その他) と投稿フォーマット (= 見出し / 絵文字 / 構造) は **プロジェクト固有**。 各プロジェクト repo の boundary skill とプロジェクト doc で定義する (= 例: backlog プロジェクトでは GitHub Issue コメントに `📋` / `🔄` / `🎯` 絵文字付きで投稿)。
+
+## 15. 採用しない選択
 
 セミ自律であって全自律ではない。 以下は意図的に持たない。
 
