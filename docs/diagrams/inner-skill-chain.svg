@@ -1,0 +1,200 @@
+<svg viewBox="0 0 1280 760" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>俯瞰図 2/2: 実装側 skill chain (= In Progress の内側 zoom in)</title>
+  <desc>1 Issue が In Progress 内で辿る skill / subagent chain と、 各段で読む / 書く doc</desc>
+
+  <style>
+    .title { font: 700 18px ui-sans-serif, -apple-system, sans-serif; fill: #f0f6fc; }
+    .subtitle { font: 12px ui-sans-serif, sans-serif; fill: #8b949e; }
+    .col-head { font: 700 14px ui-sans-serif, sans-serif; fill: #f0f6fc; }
+    .stage-title { font: 700 13px ui-sans-serif, sans-serif; fill: #f0f6fc; }
+    .stage-sub { font: 11px ui-monospace, Consolas, monospace; fill: #c9d1d9; }
+    .read-doc { font: 10px ui-monospace, Consolas, monospace; fill: #79c0ff; }
+    .write-doc { font: 10px ui-monospace, Consolas, monospace; fill: #56d364; }
+    .actor { font: 10px ui-sans-serif, sans-serif; fill: #ffa657; }
+    .legend { font: 11px ui-sans-serif, sans-serif; fill: #c9d1d9; }
+    .skill-name { font: 700 11px ui-monospace, Consolas, monospace; fill: #d2a8ff; }
+    .phase-label { font: 700 12px ui-sans-serif, sans-serif; fill: #c9d1d9; }
+  </style>
+
+  <defs>
+    <marker id="ar-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3fb950"/>
+    </marker>
+    <marker id="ar-branch" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d2a8ff"/>
+    </marker>
+  </defs>
+
+  <text x="40" y="30" class="title">俯瞰図 2/2: 実装側 skill chain (= In Progress の zoom in)</text>
+  <text x="40" y="48" class="subtitle">外側 board lifecycle は俯瞰図 1/2 へ / ここは「In Progress に入ってから Completion Check に着地するまで」の縦断</text>
+
+  <g transform="translate(770, 22)">
+    <rect x="0" y="0" width="14" height="14" fill="#0d1117" stroke="#79c0ff" rx="2"/>
+    <text x="20" y="11" class="legend">読む doc</text>
+    <rect x="100" y="0" width="14" height="14" fill="#0d1117" stroke="#56d364" rx="2"/>
+    <text x="120" y="11" class="legend">書く doc</text>
+    <rect x="200" y="0" width="14" height="14" fill="#0d1117" stroke="#ffa657" rx="2"/>
+    <text x="220" y="11" class="legend">actor</text>
+    <rect x="280" y="0" width="14" height="14" fill="#0d1117" stroke="#d2a8ff" rx="2"/>
+    <text x="300" y="11" class="legend">skill</text>
+    <line x1="370" y1="7" x2="395" y2="7" stroke="#d2a8ff" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#ar-branch)"/>
+    <text x="400" y="11" class="legend">条件分岐</text>
+  </g>
+
+  <text x="40" y="84" class="phase-label">Phase 0: 着手 (= In Progress 列に乗る瞬間)</text>
+
+  <g transform="translate(40, 96)">
+    <rect x="0" y="0" width="380" height="100" fill="#0d1117" stroke="#bf8700" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">$issue-execute</text>
+    <text x="12" y="38" class="stage-sub">Issue 検証 + claim + chat 投入</text>
+    <text x="12" y="58" class="read-doc">読: Issue body + labels (= needs-human チェック)</text>
+    <text x="12" y="72" class="read-doc">読: ~/.claude/CLAUDE.md (= 入口 skill 一覧)</text>
+    <text x="12" y="88" class="write-doc">書: gh issue develop + コメント + running label</text>
+  </g>
+
+  <line x1="430" y1="146" x2="465" y2="146" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+
+  <g transform="translate(475, 96)">
+    <rect x="0" y="0" width="380" height="100" fill="#0d1117" stroke="#bf8700" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">プロンプト投入</text>
+    <text x="12" y="38" class="stage-sub">「Issue #N 実装、 終わったら $prepare-uat」</text>
+    <text x="12" y="58" class="stage-sub">+ Execution mode: ultra-autonomous (= 無人時)</text>
+    <text x="12" y="80" class="actor">actor: chat 経路 / heartbeat 経路で同一</text>
+  </g>
+
+  <line x1="865" y1="146" x2="900" y2="146" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+
+  <g transform="translate(910, 96)">
+    <rect x="0" y="0" width="340" height="100" fill="#0d1117" stroke="#a371f7" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">入口 skill が起動</text>
+    <text x="12" y="40" class="skill-name">$task-routing</text>
+    <text x="12" y="58" class="stage-sub">(議論系なら $intent-clarify が先)</text>
+    <text x="12" y="78" class="read-doc">読: CLAUDE.md / src / subagent.md</text>
+    <text x="12" y="92" class="write-doc">書: verdict + Y-trace 1-liner</text>
+  </g>
+
+  <text x="40" y="232" class="phase-label">Phase 1: 判定 (= $task-routing の verdict 3-way、 委譲 vs Lead 直)</text>
+
+  <g transform="translate(40, 244)">
+    <rect x="0" y="0" width="380" height="90" fill="#0d1117" stroke="#3fb950" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title" style="fill:#56d364">Lead-direct (= XS、 機械的)</text>
+    <text x="12" y="38" class="stage-sub">1 file typo / mechanical rename</text>
+    <text x="12" y="58" class="stage-sub">→ Lead が直接 Edit / Write</text>
+    <text x="12" y="78" class="write-doc">書: src 1 ファイル + commit</text>
+  </g>
+
+  <g transform="translate(440, 244)">
+    <rect x="0" y="0" width="380" height="90" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title" style="fill:#79c0ff">delegate-single (= S-M)</text>
+    <text x="12" y="38" class="stage-sub">1 wave 相当、 subagent 1-3 体</text>
+    <text x="12" y="58" class="stage-sub">→ Phase 2 (= 実装) へ直行</text>
+    <text x="12" y="78" class="write-doc">書: Phase 2 で複数</text>
+  </g>
+
+  <g transform="translate(840, 244)">
+    <rect x="0" y="0" width="410" height="90" fill="#0d1117" stroke="#bf8700" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title" style="fill:#ffd33d">delegate-slice (= L+)</text>
+    <text x="12" y="38" class="stage-sub">5+ files / cross-layer / 複数判断</text>
+    <text x="12" y="58" class="skill-name">→ $task-slicing → $wave-status</text>
+    <text x="12" y="78" class="write-doc">書: wave plan + 進捗 .md</text>
+  </g>
+
+  <text x="40" y="370" class="phase-label">Phase 2: 実装 (= subagent chain、 wave ごと繰り返す)</text>
+
+  <g transform="translate(40, 382)">
+    <rect x="0" y="0" width="200" height="120" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">設計</text>
+    <text x="12" y="38" class="skill-name">architect</text>
+    <text x="12" y="58" class="read-doc">CLAUDE.md / AGENTS.md</text>
+    <text x="12" y="72" class="read-doc">既存 src + 関連 ADR</text>
+    <text x="12" y="90" class="write-doc">書: 設計 contract</text>
+    <text x="12" y="106" class="actor">opus, 1M ctx 不可</text>
+  </g>
+
+  <line x1="240" y1="442" x2="265" y2="442" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+
+  <g transform="translate(265, 382)">
+    <rect x="0" y="0" width="200" height="120" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">実装</text>
+    <text x="12" y="38" class="skill-name">fullstack-engineer</text>
+    <text x="12" y="58" class="read-doc">設計 contract</text>
+    <text x="12" y="72" class="read-doc">既存 test / pattern</text>
+    <text x="12" y="90" class="write-doc">書: src + test 追加</text>
+    <text x="12" y="106" class="actor">contract 順守</text>
+  </g>
+
+  <line x1="465" y1="442" x2="490" y2="442" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+
+  <g transform="translate(490, 382)">
+    <rect x="0" y="0" width="200" height="120" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">検証</text>
+    <text x="12" y="38" class="skill-name">qa-expert</text>
+    <text x="12" y="58" class="read-doc">diff + test 結果</text>
+    <text x="12" y="72" class="read-doc">Issue 要求</text>
+    <text x="12" y="90" class="write-doc">書: 指摘 / 承認</text>
+    <text x="12" y="106" class="actor">Checker (= §2 maker/checker)</text>
+  </g>
+
+  <line x1="690" y1="442" x2="715" y2="442" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+
+  <g transform="translate(715, 382)">
+    <rect x="0" y="0" width="240" height="120" fill="#0d1117" stroke="#8b949e" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">追加 lens (= 任意起動)</text>
+    <text x="12" y="38" class="skill-name">security / perf / writer</text>
+    <text x="12" y="58" class="read-doc">該当領域 diff</text>
+    <text x="12" y="72" class="read-doc">専門 doc / std</text>
+    <text x="12" y="90" class="write-doc">書: 専門指摘</text>
+    <text x="12" y="106" class="actor">各 agent 自己起動判定</text>
+  </g>
+
+  <line x1="955" y1="442" x2="980" y2="442" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+
+  <g transform="translate(980, 382)">
+    <rect x="0" y="0" width="270" height="120" fill="#0d1117" stroke="#d2a8ff" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">wave 完了 → 次 wave へ</text>
+    <text x="12" y="36" class="skill-name">$wave-status (= mark)</text>
+    <text x="12" y="56" class="stage-sub">delegate-slice のみ反復</text>
+    <text x="12" y="76" class="write-doc">書: wave 進捗 .md 更新</text>
+    <text x="12" y="92" class="stage-sub" style="fill:#56d364">全 wave 完了 = Phase 3 へ</text>
+    <text x="12" y="108" class="actor">単一 wave なら直行</text>
+  </g>
+
+  <text x="40" y="538" class="phase-label">Phase 3: 完了報告 + UAT パッケージ (= Completion Check に着地して内側を抜ける)</text>
+
+  <g transform="translate(40, 550)">
+    <rect x="0" y="0" width="380" height="110" fill="#0d1117" stroke="#bf8700" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">完了報告統合</text>
+    <text x="12" y="36" class="skill-name">$finish-task</text>
+    <text x="12" y="56" class="read-doc">読: 全 wave 結果 + test + review 指摘</text>
+    <text x="12" y="70" class="read-doc">読: spec / Issue 要求 (= 主張 vs 証跡)</text>
+    <text x="12" y="88" class="write-doc">書: 統合レポート (= 会話内)</text>
+    <text x="12" y="102" class="write-doc">書: AI 自己開示 + 未解決 grep</text>
+  </g>
+
+  <line x1="430" y1="605" x2="465" y2="605" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+
+  <g transform="translate(475, 550)">
+    <rect x="0" y="0" width="380" height="110" fill="#0d1117" stroke="#bf8700" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">UAT パッケージ生成</text>
+    <text x="12" y="36" class="skill-name">$prepare-uat</text>
+    <text x="12" y="56" class="read-doc">読: $finish-task の統合レポート</text>
+    <text x="12" y="70" class="read-doc">読: Issue body (= 要求と突き合わせ)</text>
+    <text x="12" y="88" class="write-doc">書: UAT 9 要素 (= Issue コメント)</text>
+    <text x="12" y="102" class="write-doc">書: Resume 手順 A + B</text>
+  </g>
+
+  <line x1="865" y1="605" x2="900" y2="605" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+
+  <g transform="translate(910, 550)">
+    <rect x="0" y="0" width="340" height="110" fill="#1c3a1c" stroke="#3fb950" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title" style="fill:#56d364">Completion Check に着地</text>
+    <text x="12" y="40" class="stage-sub">board: In Progress → Completion Check</text>
+    <text x="12" y="60" class="write-doc">削: running label (= claim 解放)</text>
+    <text x="12" y="80" class="stage-sub">この後は外側 = 俯瞰図 1/2</text>
+    <text x="12" y="100" class="stage-sub" style="fill:#d2a8ff">cron 性悪 Checker が verdict 判定</text>
+  </g>
+
+  <text x="40" y="700" class="legend">▸ Phase 1 で「実装系 request」は $task-routing が拾い、「相談系 request」は $intent-clarify が拾う (= 入口 2 つ、 one-directional に hand-off)</text>
+  <text x="40" y="718" class="legend">▸ Phase 2 の subagent は全員が共同。 影響範囲の最終判定は各 teammate が自分の専門領域で行う (= SPOF 解消)</text>
+  <text x="40" y="736" class="legend">▸ Phase 3 で着地した Completion Check は cron で精査 (= 4 証跡裏取り) → forward/bounce/escalate の verdict 3-way、 詳細は俯瞰図 1/2 §13</text>
+</svg>

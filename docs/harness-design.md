@@ -1,0 +1,297 @@
+# harness 設計
+
+個人開発で使う AI 開発ハーネスの設計仕様。 universal な部分 (= skill / agent / フロー / 工学原則) のみを記述する。 プロジェクト固有の運用 (= 例: backlog の board / Issue lifecycle) は **§4.1 外側レイヤー** で「乗る場所」 として位置づけるだけで、 詳細は各プロジェクト repo の doc に委ねる。
+
+## 1. 概要
+
+ハーネスは 2 層に分かれる:
+
+- **内側 (= 本 repo のスコープ)**: 「1 つの要求 (= ユーザー発話 / Issue / バグ報告) を受け取り、 設計 → 実装 → 検証 → 完了報告まで回す」 共通の skill chain。 vendor (= Claude Code / Codex / Cursor / Gemini) を問わず同じ構造で動く。
+- **外側 (= プロジェクト固有のスコープ)**: 「要求をどこから拾い、 どこに着地させるか」 のライフサイクル。 例: backlog ハーネスでは GitHub Issue を起点に board の 6 列で管理する。
+
+本 doc は **主に内側を記述** し、 外側との接続点 (= boundary) を §4.3 で明示する。 内側と外側の責務分離が doc 整理の核心。
+
+## 2. 採用する工学原則
+
+| 原則 | 意味 |
+|---|---|
+| State is on disk, not in context | 記憶は git / docs / state ファイルに置く。 context に頼らない |
+| One item per loop | 1 要求 = 1 ループ。 triage / fix / review を混ぜない |
+| Fresh context per iteration | 仕様は毎ループ source から再ロード、 context 汚染回避 |
+| Maker / Checker split | 設計と検証は別 agent / 別 scaffold で実施 |
+| Out-of-process supervisor | 停止判定を agent の自己採点ではなく外部で行う |
+| Active over passive AI use | 委任ではなく概念探究として使う |
+
+## 3. 多層防御スタック
+
+「何を持つか」 (= agent / state / tool) とは独立した 「何で守るか」 の次元。
+
+| 層 | 役割 | 起源 |
+|---|---|---|
+| 1. 役割分離 | 設計 / 実装 / 検証 / UAT 準備を別 agent | Sense-Plan-Act、 Behavior Tree |
+| 2. Back pressure | lint / typecheck / test green まで前進不可 | CI |
+| 3. Out-of-process supervisor | 停止条件を外部 hook で grep block | MAPE-K |
+| 4. Watchdog (in-band) | wave 毎の budget cap、 反復上限 | ROS software watchdog |
+| 5. E-stop (out-of-band) | 破壊的操作 denylist、 手動 kill | ROS Nav2 Safety Node |
+| 6. Circuit breaker | 同一 task 連続失敗で escalation | Fowler |
+| 7. Saga | 各 step に compensating action を up-front 定義 | Richardson |
+| 8. Error budget | 失敗予算を pre-allocate、 枯渇で diagnostic 強制 | Google SRE |
+| 9. Exponential backoff + jitter | rate limit / 5xx 時の retry 戦略 | AWS Builders' Library |
+| 10. Durable execution | tool call を append-only event log、 resume 時 replay | Temporal |
+| 11. Hermetic / content-addressed | input closure hash で agent step を memoize | Bazel / Nix |
+| 12. UAT 引き渡し品質 | 人間 UAT に必要な素材を AI が揃える | 本ハーネス固有 |
+
+## 4. システム構成
+
+内側 skill chain + 外側プロジェクトレイヤー + boundary 接続部 を一つの章にまとめる。 全体俯瞰は [`diagrams/inner-skill-chain.svg`](diagrams/inner-skill-chain.svg) (= 内側) と [`diagrams/backlog-lifecycle.svg`](diagrams/backlog-lifecycle.svg) (= 外側、 backlog プロジェクトを例にした参考図) を参照。
+
+### 4.1 外側レイヤー (= プロジェクト固有、 本 repo の管轄外)
+
+要求の入口と着地点はプロジェクトに依存する。 例:
+
+| プロジェクト | 入口 | 着地点 |
+|---|---|---|
+| backlog | GitHub Issue (= board 6 列) | PR merge で Done |
+| 単発タスク (= chat 直起動) | user 発話 | session 終了 |
+| code-review 作業 | PR / branch diff | 修正 commit |
+
+外側レイヤーは内側 skill chain の **wrapping** をする責務を持つ。 backlog の場合は `$issue-from-idea` (= Inbox → Ready) / `$issue-execute` (= Ready → In Progress、 内側起動) / `$prepare-uat` (= 完了 → Completion Check) の 3 skill が wrapping を担う。 これら 3 skill は **backlog repo に置く** (= 本 repo には置かない)。
+
+### 4.2 内側 skill chain (= 本 repo の管轄、 vendor 非依存)
+
+要求 1 件を回す共通フロー。 入口 2 つ + 共通ステージで構成。
+
+#### 入口 (= entry-point)
+
+ユーザー発話の性質に応じて 2 つの入口のどちらかが起動する。
+
+| skill | trigger | 役割 |
+|---|---|---|
+| `$task-routing` | 実装系発話 (= 「直して」 / 「add」 / 「実装」) | verdict 3-way (= `Lead-direct` / `delegate-single` / `delegate-slice`) を出す |
+| `$intent-clarify` | 相談 / 意図整理発話 (= 「相談」 / 「迷ってる」 / 「どう思う」) | 6 軸 intent (= Outcome / User / Why now / Success / Constraint / Out of scope) を確定 → `$task-routing` に one-directional に hand-off (= ループしない) |
+
+#### 共通ステージ (= verdict 後)
+
+- **Lead-direct**: Lead が直接実装。 sub-agent なし。 trivial な機械的編集 (= 1 file typo / mechanical rename) のみ。
+- **delegate-single**: `architect` (= 設計) → `fullstack-engineer` (= 実装) → `reviewer` + `qa-verifier` (= 並列検証) の 1 ラウンド。 Lead は監督、 編集しない。
+- **delegate-slice**: `$task-slicing` で wave 分解 → `$wave-status init` → 各 wave を delegate-single 相当で回す。
+
+各 wave 完了時に `$wave-status mark` で進捗永続化、 全 wave 完了時に `$finish-task` で完了報告統合 + コミットメッセージ生成 (= `$commit-message`)。
+
+#### subagent 6 種
+
+| agent | 役割 |
+|---|---|
+| `architect` | 設計 / 影響範囲分析 / 接続点設計 |
+| `fullstack-engineer` | 実装 (= file 編集 / コマンド実行) |
+| `qa-expert` | 検証 (= test 実行、 typecheck、 spec との突き合わせ) |
+| `performance-engineer` | 性能観点 lens (= 必要時) |
+| `security-auditor` | security 観点 lens (= 必要時) |
+| `technical-writer` | doc 整理 / README / コメント |
+
+各 agent は自分の領域の影響判断を行う SPOF 解消 (= 「Lead が全部判断」 ではなく 「各 teammate が自領域を判断」)。
+
+### 4.3 boundary 接続部 (= 外側 → 内側 → 外側)
+
+外側レイヤーは以下の形で内側に hand-off する:
+
+```
+[外側] requestを準備 (= Issue / branch / context)
+  ↓
+[boundary skill が chat にプロンプトを投入]
+  例: $issue-execute は 「Issue #N 実装、 終わったら $prepare-uat 呼んで」 を投入
+  プロンプトには Execution mode (= ultra-autonomous / step-by-step) を inject
+  ↓
+[内側] $task-routing が description match で起動
+  ↓
+... verdict → wave → 実装 → 検証 ...
+  ↓
+[内側] $finish-task で統合レポート
+  ↓
+[boundary skill が外側に return]
+  例: $prepare-uat は UAT パッケージを Issue にコメント + status を Completion Check に遷移
+```
+
+boundary skill (= `$issue-execute` / `$prepare-uat` 等) は **プロジェクト個別の repo** で持つ。 本 repo の skill は内側のみを記述する。
+
+## 5. 起動経路
+
+ユーザー発話と外側レイヤーの組み合わせで 3 経路ある。 backlog プロジェクトを例にすると:
+
+| 経路 | trigger | 仕組み |
+|---|---|---|
+| a. chat 指示 | 人間が AI に 「Issue #N やって」 / 「X を直して」 | boundary skill を直接呼ぶ (= 即時起動) |
+| b. board drag | 人間が board の status を手動で動かす | scheduled task の次サイクルで拾われる (= 最大 15 分 lag) |
+| c. routine heartbeat | Claude routine が cron で起動 | プロジェクト固有の pick skill が要求を 1 件選んで boundary skill 呼出 |
+
+chat 直起動の単発タスクは 「外側レイヤーなし」 で内側 skill chain が直接走る (= a 経路の特殊形)。
+
+## 6. 入口 skill の判定
+
+`$task-routing` の判定基準 (= Phase 1 定性 gate 3 質問):
+
+1. **公開挙動の変更?**: UI 挙動 / public API / runtime contract / CLI semantics / on-disk file format が変わるか?
+2. **harness で検証可能?**: 既存 verifier (= typecheck / cargo test / clippy / golden files) が客観的に確認できるか?
+3. **設計判断は不要?**: 原因確定済 AND 修正は既存パターンの素直な適用 (= grep-1-shot) か?
+
+3 つすべて NO / YES / YES → `Lead-direct`、 いずれかが該当しない → 委譲。 委譲は size (= XS-S / S-M / L-XL) で `delegate-single` か `delegate-slice` に分かれる。
+
+`$intent-clarify` の判定基準: 「意図整理 / 観点出し / stress-test / 方針決め」 に該当するか。 6 軸 intent を確定し、 必要なら 5 lens (= architect / fullstack-engineer / reviewer / qa-verifier / docs-curator) を並列起動して観点を集める。 確定 intent を `$task-routing` に渡す (= one-directional)。
+
+## 7. UAT パッケージの 9 要素 (= 外側レイヤーの仕様)
+
+backlog プロジェクト等で実装完了から人間 UAT に渡す際に生成する素材。 内側 skill chain は本 9 要素を直接生成しないが、 `$finish-task` の統合レポートが素材を提供する。 boundary skill (= 例: `$prepare-uat`) がそれを 9 要素フォーマットに整形する。
+
+**証跡 (1-3) → 確認方法 (4-6) → リスク + 自己開示 (7-8) → 差し戻し (9)** の順:
+
+1. **実装サマリ** — 変更ファイル + 設計判断 + diff 規模 + 関連 ADR
+2. **テスト結果** — test command + 新規 unit ケース + pass/fail + coverage 観点 + 手動確認
+3. **レビュー指摘** — qa-expert / その他 subagent の指摘 + 対応状況 (= 修正済 / 意図的に残した / 後続 Issue)
+4. **何を確認すべきか** — 要求機能の確認ポイント、 想定エッジケース、 regression 観点
+5. **どう確認するか** — preview URL / 起動コマンド、 操作シーケンス、 test data
+6. **AI が自分で確認した範囲** — 自動テストの screenshot / log、 「ここまでは自動」 の境界線
+7. **想定リスク** — 「ここは confidence が低い」 「この edge case は試していない」 の自己申告
+8. **AI 側で勝手に決めた事 + 懸念** — user 確認なく取った判断を **必ず列挙** (= 該当なしなら 「特になし」 明記)
+9. **失敗時の差し戻し方** — 修正指示の付け方 + 再 pick の手順
+
+## 8. Resume 戦略 (2 種類)
+
+session が止まることはあり得るので、 再開手段を 2 つ用意する。
+
+| 種類 | 用途 | 手段 |
+|---|---|---|
+| A. 同 session で再開 | 過去 context (= 議論履歴) を継承して続ける | Desktop sidebar から該当 session を開く、 または `claude --resume <id>` |
+| B. 新 session で続行 | 過去 context は捨て、 repo state から復元 | worktree に cd → `claude` 起動 → 「branch から現状確認」 と指示 |
+
+boundary skill (= 例: `$prepare-uat`) は UAT パッケージに **両方の手順を記載** する。
+
+## 9. stuck 検知 + label 設計 (= 外側レイヤーの仕様)
+
+長時間動かない session を検知する仕組みは外側レイヤーの責務 (= 内側は単一 session の中で完結する)。 backlog の例:
+
+- `$issue-picking-heartbeat` が起動時に `~/.claude/projects/` の jsonl 最終更新時刻を scan し、 **6 時間** 以上更新がない In Progress な要求を **stuck と推定**。
+- 挙動: **勝手に止めない、 警告のみ**。 警告内容 (= Issue コメント): 「session が N 時間更新ありません」 + Resume 手段 A / B 併記 + **24 時間 dedup**。
+- 判断 (= Resume するか、 wontfix にするか、 そのまま待つか) は人間が行う。
+
+### label の役割分離 (= 状態を記録、 状態遷移トリガーには使わない)
+
+ラベルは 「状態を記録するか」 「状態を遷移させるか」 で 2 種類ある。 本ハーネスは **記録のみ採用、 遷移トリガーは不採用**:
+
+| label | 役割 | 付与 | 削除 |
+|---|---|---|---|
+| `running` | 着手フラグ / 排他ロック memo (= optimistic locking) | boundary skill が claim 時 | boundary skill が離脱時 |
+| `long-running` | 6h+ 滞留警告 | heartbeat が自動付与 | しない (= 過去事実として残す) |
+| `needs-human` | 最初から AI 着手対象外 (= 静的判定) | user 明示 | user 明示 |
+
+`running` の race detection: boundary skill が pick 前に `running` の有無を確認し、 既にあれば後発として abort (= board を一切触らず降りる)。 PRE==0 を 2 session が同時に見る稀な同時起動では両者が進む可能性があるが、 ラベル付与 + status 遷移は冪等に収束し、 session 開始コメントが 2 件付くだけで board に残留物は出ない。
+
+stuck で `running` が残るのは意図的 (= 「動いている可能性」 を勝手に否定しない)。 `running` + `long-running` が同居 = 「着手中のはずが 6h 放置」 = stuck の明確なサイン。
+
+### needs-human (= 静的判定、 着手前で除外)
+
+`stuck` (= 着手後の動的状態) とは別軸で、 **最初から人間が物理的に手を動かさないと進まない要求** を区別する。 対象範囲は **AI が代替不能で物理的に人間の手が要る** 領域のみ (= 2 カテゴリ):
+
+1. **environment / 設定の物理操作**: ローカル環境固有の path / 認証 / OS 設定、 外部サービス UI 操作、 chezmoi 手動 review、 ハードウェア絡み
+2. **security / privacy / 不可逆操作**: 認証情報 / 鍵生成 / rotation、 production 破壊的操作、 external publish、 課金 / billing
+
+それ以外 (= 学習優先 / 好み判断 / upstream 待ち / 抽象アイデア) は AI が回せる範囲なので対象外。 **AI 自動判定はしない** (= 誤判定で人間 Issue が AI に取られる本末転倒を避ける、 user 明示宣言のみで付与)。
+
+boundary skill (= 例: `$issue-execute`) は起動時に label を確認し、 `needs-human` があれば **副作用ゼロで早期停止** する (= branch 作成 / status 遷移 / session コメント / `running` 付与のいずれも実行しない)。
+
+## 10. 要求 ↔ branch ↔ session の紐付け
+
+GitHub プロジェクトの場合、 標準機能 (= Issue の Development sidebar、 `gh issue develop`) を使い、 命名規約を自作しない。
+
+- branch 名: `<issue-number>-<title-kebab>` (= GitHub 自動生成)
+- worktree path: branch checkout 時の path
+- session ID: Claude session が発行する ID
+- 紐付け証跡: boundary skill が session 開始時に Issue コメントとして 「session ID / branch / worktree path」 を投稿
+
+紐付けは worktree path から jsonl ファイルへ自動で辿れる (= 機械的対応可能)。
+
+GitHub プロジェクト以外 (= 単発 chat タスク) は branch + worktree のみ、 紐付け証跡は git commit message に含める。
+
+## 11. ワークフロー全体図
+
+ASCII 図ではなく SVG 2 枚に統合した。 [`diagrams/backlog-lifecycle.svg`](diagrams/backlog-lifecycle.svg) (= 外側、 backlog プロジェクトを例) と [`diagrams/inner-skill-chain.svg`](diagrams/inner-skill-chain.svg) (= 内側 skill chain) を参照。 解説は [`diagrams/README.md`](diagrams/README.md) にある。
+
+## 12. 無人実行の完走規約 (= チケット起動時の停止境界)
+
+backlog の a / c 経路 (= chat の `Issue #N やって` / heartbeat 自動 pick) は **人間不在の自動 session**。 boundary skill が `Execution mode: ultra-autonomous` を inject した状態で `$task-routing` → `$task-slicing` chain が走る。 ここでの正しい終端を固定する。
+
+### 正しい挙動
+
+- **計画承認ゲートは自動 proceed**。 `$task-slicing` の ultra-autonomous mode は本来 「計画を 1 回 surface して人間の `proceed` を取る」 が、 **無人時は承認者が不在なので待たずに進む**。 計画提示で止まるのは誤動作。
+- **全 wave を最後まで走破 → 最後に 1 回だけ boundary skill (= `$prepare-uat`) でまとめ UAT**。 wave 境界ごとの報告も、 途中の Completion Check / Awaiting UAT 退避もしない。
+- 1 session で全 wave が終わらなくても、 **進めた分まで実装** して UAT に出す。 次 session (= heartbeat の別 run / 人間 resume) が wave 進捗ファイルから続きを拾う。
+
+### 停止理由にならないもの (= 自己採点での過剰な慎重さの禁止)
+
+設計原則 「停止判定を agent の自己採点ではなく外部で行う (= Out-of-process supervisor、 §2)」 の帰結。 以下は **止める理由にならない**:
+
+- 「規模が XL / 複数 session にまたがる」 → wave 分割済みなので 1 wave ずつ進む
+- 「未確定リスク」 → それを確かめるのが該当 wave の中身。 検証は wave 内タスク
+- 「ADR が要る」 → Proposed 起票して進む (= Accepted 昇格だけ別 turn / 人間判断)
+- 「設計判断が多い」 → architect / fullstack-engineer に委譲する話
+
+### 本当に止めて良い条件 (= 客観的異常のみ)
+
+- 検証 (= test / typecheck) が 2 連続で失敗
+- UAT 不能 wave が分割後も残る
+- 計画段階で予見していなかった ADR が wave の途中で初めて必要になる
+- ユーザー向け変化を特定できないほど要求が曖昧
+
+これらは In Progress のまま blocker を要求源 (= Issue) に surface して終わる (= UAT パッケージを作らない、 diff 0 行で boundary skill を呼ばない)。 stuck として heartbeat が 6h 後に拾える。
+
+> この規約が無いと、 Lead が 「大変そうだから計画だけ立てて Awaiting UAT に逃がす」 誤動作を起こす (= 過去に実発生)。 内側 skill chain と boundary skill の各層に対応する gate を実装済み。
+
+## 13. Completion Check 精査ルーチン (= 性悪説 Checker、 外側レイヤーの仕様)
+
+boundary skill (= 例: `$prepare-uat`) が着地させた要求を、 別の scheduled task (= 例: `completion-check-routine`、 cron `7-59/15 * * * *`、 heartbeat と 7-8 分裏) が **性悪説 (= 達成していないと疑う) を default** に精査する。 §2 の 「Out-of-process supervisor」 + 「Maker / Checker split」 を体現する **Checker 役**。 実装 session (= Maker) の自己申告を鵜呑みにせず、 別 process が証跡で裏取りする。
+
+### 4 つの証跡ソース
+
+| 証跡 | 見る対象 |
+|---|---|
+| 本文 wave 進捗 | 要求 body の wave チェックボックスが全完了か |
+| git log 裏取り | 主張した変更が実際に commit され、 **origin に push されているか** (= 未 push はローカルのみで GitHub から見えない) |
+| スコープ乖離 | 要求と diff の範囲がズレていないか |
+| test 通過 | test / typecheck の pass 証跡があるか |
+
+### 3-way routing (= 実質 forward/bounce の 2-way + 例外)
+
+| verdict | 遷移 | 補足 |
+|---|---|---|
+| forward (達成) | Completion Check → Awaiting UAT 前進 | 全 wave ✓ + git log 裏付け (push 済み) + test ✓ + スコープ乖離なし。 人間 UAT へ |
+| bounce (未達) | Completion Check → Ready 差し戻し | スコープ未達・乖離・**未 push**・test 未通過。 **worktree は残す** (= 継続性、 再 pick が現状から続行) |
+| escalate (真の判断不能) | Completion Check → Awaiting UAT に回す | 別 repo で repo 名喪失 / 本文と diff 矛盾 = cron が機械的に合否を出せない。 「裏取りゼロ」 を ⚠️ コメントで明示し人間が一から judge |
+
+**判断不能の再分類** (= escalate を激レアに縮小):
+
+- **未 push** は 「裏取り不能 = 判断不能」 ではなく **「push 義務違反 = 不合格 (bounce)」**。 「State is on disk」 (= §2) に push は含まれ、 ローカルのみ = State が共有されていない = 完了の前提未達。
+- **push 済みで branch 名だけ判明** なら worktree path 不明でも gh 経由で git log 裏取り可能 (= 判断不能にしない)。
+- 真の判断不能 = 「別 repo で repo 名が記録から喪失」 のみ。 session 開始コメント保全でこのケースも大幅に減る。
+
+いずれの verdict でも Completion Check を抜ける際に `running` ラベルを削除する (= 離脱でフラグを下ろす)。
+
+### DRY_RUN 安全装置
+
+判定ロジックが信頼できるまで `DRY_RUN=true` で起票。 verdict を Issue コメントで報告するだけ、 status は動かさない。 cron 判定が実際の前進 / 差し戻しと一致することを確認してから `false` へ flip。
+
+### worktree 継続性
+
+未達で Ready に差し戻しても **worktree は破棄しない**。 再 pick した session が repo state (= Resume 戦略 B、 §8) から現状を復元して続きを進められる。 差し戻しは 「やり直し」 ではなく 「未完を Ready に戻して継続」。
+
+## 14. 採用しない選択
+
+セミ自律であって全自律ではない。 以下は意図的に持たない。
+
+- budget cap なしの autonomous overnight
+- MCP 経由での本番システム接続
+- AI 自己判定での PR merge
+- 破壊的操作の事前 gate なし実行
+- 全自動で人間 review を skip する経路
+- AI による依存推論 (= 機能の実装順を AI に推論させる、 推論誤りが多い)
+- label を介した **状態遷移 trigger** (= 「ラベルを付けたら status が動く」 のような間接的な遷移トリガー。 責務が間接的になるため不採用)
+
+> **`running` ラベルとの関係 (= 上記の例外ではない)**: `running` ラベルは **状態遷移 trigger ではなく排他ロック memo** (= optimistic locking の claim 印、 §9)。 「`running` が付いたから status が動く」 のではなく、 status 遷移は常に明示的な script (= `issue-status.ps1` 等) が行い、 `running` は 「今 claim されているか」 を記録するだけ。 heartbeat はこのラベルを **読んで** race を判定するが、 ラベルが status を **動かす** ことはない。 同様に `long-running` も状態を記録するだけで遷移を起こさない。 したがって両ラベルは 「状態遷移 trigger 不採用」 の方針と矛盾しない。

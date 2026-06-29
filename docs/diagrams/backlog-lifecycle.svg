@@ -1,0 +1,238 @@
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>俯瞰図 1/2: backlog 側 board lifecycle</title>
+  <desc>backlog harness の外側の流れ: 起動 3 経路 + board 6 列 + 状態遷移 + label / WIP</desc>
+
+  <style>
+    .title { font: 700 18px ui-sans-serif, -apple-system, sans-serif; fill: #f0f6fc; }
+    .subtitle { font: 12px ui-sans-serif, sans-serif; fill: #8b949e; }
+    .col-head { font: 700 14px ui-sans-serif, sans-serif; fill: #f0f6fc; }
+    .stage-title { font: 700 13px ui-sans-serif, sans-serif; fill: #f0f6fc; }
+    .stage-sub { font: 11px ui-monospace, Consolas, monospace; fill: #c9d1d9; }
+    .actor { font: 10px ui-sans-serif, sans-serif; fill: #ffa657; }
+    .arrow-label { font: 11px ui-monospace, Consolas, monospace; fill: #c9d1d9; }
+    .legend { font: 11px ui-sans-serif, sans-serif; fill: #c9d1d9; }
+    .skill-name { font: 700 11px ui-monospace, Consolas, monospace; fill: #d2a8ff; }
+    .label-pill { font: 10px ui-monospace, Consolas, monospace; }
+  </style>
+
+  <defs>
+    <marker id="ar-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3fb950"/>
+    </marker>
+    <marker id="ar-bounce" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f0883e"/>
+    </marker>
+    <marker id="ar-judge" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#a371f7"/>
+    </marker>
+    <marker id="ar-trigger" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#79c0ff"/>
+    </marker>
+  </defs>
+
+  <text x="40" y="30" class="title">俯瞰図 1/2: backlog 側 board lifecycle (= 外側)</text>
+  <text x="40" y="48" class="subtitle">起動 3 経路 → board 6 列 → label / 状態遷移 / verdict 3-way / 内側 zoom は俯瞰図 2/2 へ</text>
+
+  <g transform="translate(820, 22)">
+    <line x1="0" y1="7" x2="22" y2="7" stroke="#3fb950" stroke-width="2" marker-end="url(#ar-flow)"/>
+    <text x="28" y="11" class="legend">前進</text>
+    <line x1="80" y1="7" x2="102" y2="7" stroke="#f0883e" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#ar-bounce)"/>
+    <text x="108" y="11" class="legend">bounce</text>
+    <line x1="170" y1="7" x2="192" y2="7" stroke="#a371f7" stroke-width="2" stroke-dasharray="2 3" marker-end="url(#ar-judge)"/>
+    <text x="198" y="11" class="legend">escalate</text>
+    <line x1="270" y1="7" x2="292" y2="7" stroke="#79c0ff" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#ar-trigger)"/>
+    <text x="298" y="11" class="legend">trigger</text>
+    <rect x="360" y="0" width="14" height="14" fill="#0d1117" stroke="#ffa657" rx="2"/>
+    <text x="380" y="11" class="legend">actor</text>
+  </g>
+
+  <text x="40" y="80" class="col-head">起動 3 経路 (= 1 Issue が In Progress に入る入口)</text>
+
+  <g transform="translate(40, 92)">
+    <rect x="0" y="0" width="380" height="80" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">a. chat 指示 (= 即時)</text>
+    <text x="12" y="38" class="stage-sub">user: 「Issue #N やって」</text>
+    <text x="12" y="54" class="actor">actor: user (chat)</text>
+    <text x="12" y="72" class="stage-sub" style="fill:#79c0ff">→ $issue-execute を即時起動</text>
+  </g>
+
+  <g transform="translate(440, 92)">
+    <rect x="0" y="0" width="380" height="80" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">b. board drag (= 最大 15 分 lag)</text>
+    <text x="12" y="38" class="stage-sub">user: Ready → In Progress に drag</text>
+    <text x="12" y="54" class="actor">actor: user (board UI)</text>
+    <text x="12" y="72" class="stage-sub" style="fill:#79c0ff">→ heartbeat が 6h+ で long-running 付与</text>
+  </g>
+
+  <g transform="translate(840, 92)">
+    <rect x="0" y="0" width="400" height="80" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title">c. heartbeat (= 15 分 cron)</text>
+    <text x="12" y="36" class="skill-name">$issue-picking-heartbeat</text>
+    <text x="12" y="54" class="actor">actor: Claude routine (scheduled task)</text>
+    <text x="12" y="72" class="stage-sub" style="fill:#79c0ff">→ Ready 1 件 pick → $issue-execute</text>
+  </g>
+
+  <text x="40" y="208" class="col-head">board: GitHub Projects v2 (= 6 列、 WIP 上限 In Progress=3)</text>
+
+  <g transform="translate(40, 220)">
+    <rect x="0" y="0" width="195" height="200" fill="#21262d" stroke="#6e7681" stroke-width="1.5" rx="6"/>
+    <rect x="0" y="0" width="195" height="32" fill="#30363d" rx="6"/>
+    <rect x="0" y="24" width="195" height="8" fill="#30363d"/>
+    <text x="12" y="22" class="stage-title">1. Inbox</text>
+    <rect x="10" y="44" width="175" height="44" fill="#0d1117" stroke="#6e7681" rx="4"/>
+    <text x="18" y="62" class="stage-sub">遷移主体:</text>
+    <text x="18" y="78" class="stage-sub" style="fill:#79c0ff">add-to-project (GH Actions)</text>
+    <text x="12" y="108" class="stage-sub">- gh issue create で着地</text>
+    <text x="12" y="124" class="stage-sub">- 自動 add-to-project</text>
+    <text x="12" y="140" class="stage-sub">- 議論 / triage 前</text>
+    <text x="12" y="172" class="actor">label: なし</text>
+    <text x="12" y="188" class="actor">AI pick 対象外</text>
+  </g>
+
+  <g transform="translate(245, 220)">
+    <rect x="0" y="0" width="195" height="200" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <rect x="0" y="0" width="195" height="32" fill="#1f6feb" rx="6"/>
+    <rect x="0" y="24" width="195" height="8" fill="#1f6feb"/>
+    <text x="12" y="22" class="stage-title">2. Ready</text>
+    <rect x="10" y="44" width="175" height="44" fill="#0d1117" stroke="#1f6feb" rx="4"/>
+    <text x="18" y="62" class="stage-sub">遷移主体:</text>
+    <text x="18" y="78" class="skill-name">$issue-from-idea</text>
+    <text x="12" y="108" class="stage-sub">- 議論完了 = Ready 化</text>
+    <text x="12" y="124" class="stage-sub">- AI pick 対象</text>
+    <text x="12" y="140" class="stage-sub">- Priority field で順位付け</text>
+    <text x="12" y="172" class="actor">needs-human で除外</text>
+    <text x="12" y="188" class="actor">heartbeat が pick</text>
+  </g>
+
+  <g transform="translate(450, 220)">
+    <rect x="0" y="0" width="195" height="200" fill="#0d1117" stroke="#d29922" stroke-width="2" rx="6"/>
+    <rect x="0" y="0" width="195" height="32" fill="#bf8700" rx="6"/>
+    <rect x="0" y="24" width="195" height="8" fill="#bf8700"/>
+    <text x="12" y="22" class="stage-title">3. In Progress</text>
+    <text x="150" y="22" class="stage-sub" style="fill:#ffd33d">WIP≤3</text>
+    <rect x="10" y="44" width="175" height="44" fill="#0d1117" stroke="#d29922" rx="4"/>
+    <text x="18" y="62" class="stage-sub">遷移主体:</text>
+    <text x="18" y="78" class="skill-name">$issue-execute</text>
+    <text x="12" y="108" class="stage-sub">- branch 作成 + claim</text>
+    <text x="12" y="124" class="stage-sub">- AI session 実装中</text>
+    <text x="12" y="140" class="stage-sub" style="fill:#a371f7">▼ 内側は俯瞰図 2/2 へ</text>
+    <text x="12" y="172" class="actor" style="fill:#56d364">+ running label (= claim)</text>
+    <text x="12" y="188" class="actor">6h+ → long-running</text>
+  </g>
+
+  <g transform="translate(655, 220)">
+    <rect x="0" y="0" width="195" height="200" fill="#0d1117" stroke="#a371f7" stroke-width="1.5" rx="6"/>
+    <rect x="0" y="0" width="195" height="32" fill="#8957e5" rx="6"/>
+    <rect x="0" y="24" width="195" height="8" fill="#8957e5"/>
+    <text x="12" y="22" class="stage-title">4. Completion Check</text>
+    <rect x="10" y="44" width="175" height="44" fill="#0d1117" stroke="#a371f7" rx="4"/>
+    <text x="18" y="62" class="stage-sub">着地 / 遷移主体:</text>
+    <text x="18" y="78" class="skill-name">$prepare-uat / cron</text>
+    <text x="12" y="108" class="stage-sub">- UAT パッケージ着地</text>
+    <text x="12" y="124" class="stage-sub">- cron が性悪説で精査</text>
+    <text x="12" y="140" class="stage-sub">- 4 証跡で裏取り (§13)</text>
+    <text x="12" y="172" class="actor" style="fill:#f0883e">− running label</text>
+    <text x="12" y="188" class="actor">WIP に含めない</text>
+  </g>
+
+  <g transform="translate(860, 220)">
+    <rect x="0" y="0" width="195" height="200" fill="#0d1117" stroke="#3fb950" stroke-width="1.5" rx="6"/>
+    <rect x="0" y="0" width="195" height="32" fill="#238636" rx="6"/>
+    <rect x="0" y="24" width="195" height="8" fill="#238636"/>
+    <text x="12" y="22" class="stage-title">5. Awaiting UAT</text>
+    <rect x="10" y="44" width="175" height="44" fill="#0d1117" stroke="#3fb950" rx="4"/>
+    <text x="18" y="62" class="stage-sub">遷移主体:</text>
+    <text x="18" y="78" class="skill-name">cron (forward/escalate)</text>
+    <text x="12" y="108" class="stage-sub">- 人間が Desktop で開く</text>
+    <text x="12" y="124" class="stage-sub">- UAT 9 要素を確認</text>
+    <text x="12" y="140" class="stage-sub">- Resume 手順 A or B</text>
+    <text x="12" y="172" class="actor">actor: user (= 人間 judge)</text>
+    <text x="12" y="188" class="actor">WIP に含めない</text>
+  </g>
+
+  <g transform="translate(1065, 220)">
+    <rect x="0" y="0" width="195" height="200" fill="#21262d" stroke="#3fb950" stroke-width="1.5" rx="6"/>
+    <rect x="0" y="0" width="195" height="32" fill="#1a4920" rx="6"/>
+    <rect x="0" y="24" width="195" height="8" fill="#1a4920"/>
+    <text x="12" y="22" class="stage-title">6. Done</text>
+    <rect x="10" y="44" width="175" height="44" fill="#0d1117" stroke="#3fb950" rx="4"/>
+    <text x="18" y="62" class="stage-sub">遷移主体:</text>
+    <text x="18" y="78" class="stage-sub" style="fill:#79c0ff">GH Projects built-in</text>
+    <text x="12" y="108" class="stage-sub">- PR merged = Done</text>
+    <text x="12" y="124" class="stage-sub">- 自動遷移</text>
+    <text x="12" y="140" class="stage-sub">- 一切手動操作なし</text>
+    <text x="12" y="172" class="actor">actor: GH (built-in)</text>
+  </g>
+
+  <line x1="235" y1="320" x2="245" y2="320" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+  <line x1="440" y1="320" x2="450" y2="320" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+  <line x1="645" y1="320" x2="655" y2="320" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+  <line x1="850" y1="320" x2="860" y2="320" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+  <line x1="1055" y1="320" x2="1065" y2="320" stroke="#3fb950" stroke-width="2.5" marker-end="url(#ar-flow)"/>
+
+  <path d="M 230 172 C 230 195, 540 195, 540 220" fill="none" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#ar-trigger)"/>
+  <text x="290" y="190" class="arrow-label" style="fill:#79c0ff">a/b/c のいずれかから</text>
+
+  <text x="40" y="450" class="col-head">Completion Check 精査の verdict 3-way (= §13、 cron 7-59/15)</text>
+
+  <g transform="translate(40, 462)">
+    <rect x="0" y="0" width="400" height="100" fill="#0d1117" stroke="#3fb950" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title" style="fill:#56d364">forward (= 達成)</text>
+    <text x="12" y="40" class="stage-sub">全 wave ✓ + push 済 + test ✓ + 乖離なし</text>
+    <text x="12" y="60" class="stage-sub">→ Completion Check から Awaiting UAT へ</text>
+    <text x="12" y="84" class="actor">人間 UAT 対象として前進</text>
+  </g>
+
+  <g transform="translate(460, 462)">
+    <rect x="0" y="0" width="400" height="100" fill="#0d1117" stroke="#f0883e" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title" style="fill:#f0883e">bounce (= 未達)</text>
+    <text x="12" y="40" class="stage-sub">スコープ未達 / 乖離 / 未 push / test 未通過</text>
+    <text x="12" y="60" class="stage-sub">→ Completion Check から Ready 差し戻し</text>
+    <text x="12" y="84" class="actor">worktree は残す = 継続性</text>
+  </g>
+
+  <g transform="translate(880, 462)">
+    <rect x="0" y="0" width="380" height="100" fill="#0d1117" stroke="#a371f7" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title" style="fill:#d2a8ff">escalate (= 真の判断不能)</text>
+    <text x="12" y="40" class="stage-sub">別 repo で repo 名喪失 / 本文と diff 矛盾</text>
+    <text x="12" y="60" class="stage-sub">→ Awaiting UAT に回し人間 judge</text>
+    <text x="12" y="84" class="actor">激レア (= 多くは bounce に再分類)</text>
+  </g>
+
+  <path d="M 660 462 C 660 430, 343 430, 343 420" fill="none" stroke="#f0883e" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar-bounce)"/>
+  <text x="430" y="442" class="arrow-label" style="fill:#f0883e">bounce → Ready</text>
+
+  <text x="40" y="600" class="col-head">label 設計 (= 状態を記録するが、 状態遷移トリガーにはしない、 §14)</text>
+
+  <g transform="translate(40, 612)">
+    <rect x="0" y="0" width="290" height="84" fill="#0d1117" stroke="#56d364" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="label-pill" style="fill:#56d364">▸ running</text>
+    <text x="12" y="40" class="stage-sub">claim フラグ / 排他ロック memo</text>
+    <text x="12" y="56" class="stage-sub">付与: $issue-execute / 削除: $prepare-uat + cron</text>
+    <text x="12" y="74" class="actor">stuck で残置 = 「動いてる可能性」</text>
+  </g>
+
+  <g transform="translate(350, 612)">
+    <rect x="0" y="0" width="290" height="84" fill="#0d1117" stroke="#ffd33d" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="label-pill" style="fill:#ffd33d">▸ long-running</text>
+    <text x="12" y="40" class="stage-sub">In Progress 6h+ = stuck の可能性</text>
+    <text x="12" y="56" class="stage-sub">付与: heartbeat (= 自動) / 削除: なし</text>
+    <text x="12" y="74" class="actor">人間判断 (= Resume / wontfix)</text>
+  </g>
+
+  <g transform="translate(660, 612)">
+    <rect x="0" y="0" width="290" height="84" fill="#0d1117" stroke="#f85149" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="label-pill" style="fill:#f85149">▸ needs-human</text>
+    <text x="12" y="40" class="stage-sub">最初から AI 着手対象外 (= 静的判定)</text>
+    <text x="12" y="56" class="stage-sub">付与: user 明示 / 自動判定なし</text>
+    <text x="12" y="74" class="actor">env / security / 不可逆操作のみ</text>
+  </g>
+
+  <g transform="translate(970, 612)">
+    <rect x="0" y="0" width="290" height="84" fill="#0d1117" stroke="#8b949e" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="label-pill" style="fill:#c9d1d9">WIP 上限</text>
+    <text x="12" y="40" class="stage-sub">In Progress のみ = 3 件</text>
+    <text x="12" y="56" class="stage-sub">Completion Check / Awaiting UAT は対象外</text>
+    <text x="12" y="74" class="actor">認知 chunk + Kingman の式</text>
+  </g>
+</svg>
