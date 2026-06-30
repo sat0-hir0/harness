@@ -145,19 +145,30 @@ grep の対象は 5 種類: (1) TODO / FIXME (Step 4-1)、 (2) `#[ignore]` / xfa
 
 `$task-routing` Boundary の 「将来予定を書かない」 ルール (= 全 agent 遵守 + reviewer 指摘対象) に基づく出口側の最終チェック。 sibling skill (= `$task-routing`) の規定を本 skill で再掲はしないので、 ルール本文と背景はそちらを参照。 ここでは grep と表面化だけを行う。
 
-- **実行**: 今回の変更 diff (= `git diff`) で以下の文字列パターンを検索する。
+- **実行 (= 推奨経路: script)**: harness repo 同梱の `scripts/check-future-plans.py` を実行する (= 検出パターン + 除外ロジック + 自己参照除外を実装、 標準ライブラリのみ依存、 OS / vendor 非依存)。
+
+  ```bash
+  python <harness>/scripts/check-future-plans.py            # HEAD vs working tree
+  python <harness>/scripts/check-future-plans.py --base main # main..HEAD
+  python <harness>/scripts/check-future-plans.py --json     # YAML 投入用
+  ```
+
+  exit code: `0` = 違反なし、 `1` = 違反検出 (= 行と category を stdout に列挙)、 `2` = invocation 失敗。
+
+- **実行 (= fallback: 手動 grep)**: script が使えない環境では agent が以下の文字列パターンを `git diff` 上で手動 grep する。 ただし script 経路と同じ精度を出すには除外条件を意識する必要があるので、 可能なら script を使う。
   - **マイルストーン / Wave / Phase 名**: `M[0-9]`, `Phase [0-9]`, `Wave [0-9]`, `Sprint [0-9]` 等 (= 内部 slice 番号)。 ただし以下は除外:
     - present-fact (= 「ignored until X is implemented」)
     - Y-trace の `accepting:` 欄 (= 「wave 分割で実装期間 1 → 3 セッション」 のような受け入れる trade-off)
     - **markdown 見出し / セクション番号** (= `## Phase 1: Spec coverage` / `### Step 4-5` / `## Phase 4: Unresolved items` 等の **skill 内構造** であり、 マイルストーン commitment ではない)
     - **ルール宣言部の literal 引用** (= 本 skill / `$task-routing` 内で 「これらを検出する」 と書いている meta 説明)
+    - **skill 自身の Phase / Step / Wave 構造** (= `skills/*/SKILL.md` / `skills/*/ATTRIBUTION.md` / `docs/` 配下は skill 構造の語彙として Phase / Wave を使うので scan 対象外)
   - **将来時制 commitment**: `will be`, `later wave`, `deferred to`, `is cut when`, 「M5 で再評価」, 「Phase 2 で実装」 等。
   - **拡張予定 / future-proofing**: `for future`, `extensible to`, `may add ... later`, 「将来 ... に拡張可能」, 「(and any future ...)」 等。
-- **判定**: 一致を `file:line` + 該当 excerpt で列挙する。 各一致について 3 択ラベルを付ける:
+- **判定**: 一致を `file:line` + category (= `milestone-name` / `future-tense` / `future-proofing`) + 該当 excerpt で列挙する。 各一致について 3 択ラベルを付ける:
   - **removed**: 違反 string を削除した (= 章ごと or 該当文ごと削除、 周辺文意も整える)
   - **kept-as-present-fact**: 違反 string を **present-fact / present-state 表現に書き換えた** (= 「M5 で再評価」 → 「現在未対応」、 「will be implemented in Phase 2」 → 「not yet implemented」)
   - **escalated**: Lead が判断保留、 user に上げる
-- **出力**: すべての一致を YAML `unresolved.future_plans_in_artifacts` に列挙する。 なければ `NONE`。 grep していなければ `not-grepped` (= 沈黙 = 「確認しなかった」 とみなされる、 NONE と書く資格なし)。
+- **出力**: すべての一致を YAML `unresolved.future_plans_in_artifacts` に列挙する。 なければ `NONE`。 grep / script のいずれも実行していなければ `not-grepped` (= 沈黙 = 「確認しなかった」 とみなされる、 NONE と書く資格なし)。
 
 なぜ Phase 4 に組み込むか: 「将来予定混入」 は TODO / FIXME と同種の **時間が経つと嘘になる残骸** (= 順番が変わる、 codename が消える、 担当が変わる)。 grep / 静的解析が効かない場所に書かれると次 session の AI が 「実装根拠」 として参照する hallucination 連鎖の温床になる (= 2026-06 limn で ARCHITECTURE.md → ADR → panic msg → `#[ignore]` reason に 28 file 汚染の実例)。 出口でも grep して残さない。
 
