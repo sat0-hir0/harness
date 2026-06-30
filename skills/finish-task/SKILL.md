@@ -145,15 +145,18 @@ grep の対象は 5 種類: (1) TODO / FIXME (Step 4-1)、 (2) `#[ignore]` / xfa
 
 `$task-routing` Boundary の 「将来予定を書かない」 ルール (= 全 agent 遵守 + reviewer 指摘対象) に基づく出口側の最終チェック。 sibling skill (= `$task-routing`) の規定を本 skill で再掲はしないので、 ルール本文と背景はそちらを参照。 ここでは grep と表面化だけを行う。
 
-- **実行 (= 推奨経路: script)**: harness repo 同梱の `scripts/check-future-plans.py` を実行する (= 検出パターン + 除外ロジック + 自己参照除外を実装、 標準ライブラリのみ依存、 OS / vendor 非依存、 untracked file も default scan に含む)。
+- **実行 (= 推奨経路: script)**: vendor 配下の `scripts/check-future-plans.py` を実行する (= 検出パターン + 除外ロジック + 自己参照除外を実装、 標準ライブラリのみ依存、 OS / vendor 非依存、 untracked file も default scan に含む)。 各 AI CLI vendor の skill ディレクトリと同じ階層に `scripts/` が配置される (= `~/.claude/scripts/`、 `~/.codex/scripts/`、 `~/.cursor/scripts/`、 `~/.gemini/scripts/`、 `~/.agents/scripts/`)。 配置は skillshare extras 経由で harness repo の `scripts/` を各 vendor に sync する (= 配置原則の詳細は [`docs/script-placement.md`](../../docs/script-placement.md) 参照)。
 
   ```bash
-  python <harness>/scripts/check-future-plans.py            # HEAD vs working tree (+ untracked)
-  python <harness>/scripts/check-future-plans.py --base main # main..HEAD
-  python <harness>/scripts/check-future-plans.py --json     # YAML 投入用
+  # 各 vendor 共通 (= 自分が動いている vendor の scripts/ を参照)
+  python ~/.claude/scripts/check-future-plans.py            # HEAD vs working tree (+ untracked)
+  python ~/.claude/scripts/check-future-plans.py --base main # main..HEAD
+  python ~/.claude/scripts/check-future-plans.py --json     # YAML 投入用
   ```
 
   exit code: `0` = 違反なし、 `1` = 違反検出 (= 行と category を stdout に列挙)、 `2` = invocation 失敗。
+
+  vendor の `scripts/` が無い場合 (= skillshare extras 未設定 / 別環境) は **harness repo を clone してあれば `~/code/harness/scripts/check-future-plans.py` を直接呼ぶ** か、 下記 fallback (= 手動 grep) に落とす。
 
 - **実行 (= 非 diff artifact の scan)**: script は `git diff` ベースなので **commit message / PR body** には届かない。 一方 `$task-routing` Boundary はこれらも禁止対象としている。 finish-task では追加で以下を agent 側で手動 check する (= 短いので grep 不要、 目視 / 簡易 regex でよい):
   - **直近 commit message** (= `git log -1 --format=%B HEAD`): 違反 string が混入していないか

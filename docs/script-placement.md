@@ -7,7 +7,7 @@ AI CLI 周りの script を作るとき、 4 つの起動経路のどれに該�
 
 | 起動経路 | 配置先 | 配布手段 | 例 |
 |---|---|---|---|
-| **harness skill / agent から呼ばれる** (= cross-OS / cross-vendor で配布したい) | **harness** (= `~/code/harness/scripts/` or `skills/<name>/`) | skillshare で全 vendor に同梱配布 | [`scripts/check-future-plans.py`](../scripts/check-future-plans.py) (= `$finish-task` Phase 4-5 から呼ばれる) |
+| **harness skill / agent から呼ばれる** (= cross-OS / cross-vendor で配布したい) | **harness** (= `~/code/harness/scripts/`) | **skillshare extras** で各 vendor の `~/.<vendor>/scripts/` に sync (= 詳細は [§ skillshare extras 経由配布](#skillshare-extras-経由配布) 参照) | [`scripts/check-future-plans.py`](../scripts/check-future-plans.py) (= `$finish-task` Phase 4-5 から呼ばれる) |
 | **`~/.claude/settings.json` の hook 経由で発火する** (= UserPromptSubmit / PreToolUse / Stop / SubagentStop など) | **dotconfig** (= `~/code/dotconfig/dot_local/share/scripts/` or `dot_claude/hooks/`) | chezmoi が settings.json と script を両方配置 | `dotconfig/dot_local/share/scripts/memory-*.ps1` (= memory lifecycle hook) |
 | **personal CLI として手で叩く** (= alias / PATH 通したい / user 専用 utility) | **dotconfig** (= `~/code/dotconfig/dot_local/bin/`) | chezmoi が PATH 通る `~/.local/bin/` に配置 | `dotconfig/dot_local/bin/issue-status.ps1` (= GitHub Projects v2 Status field 更新) |
 | **特定 project 専用** (= 例: limn の verify chain / その project の build pipeline) | **その project repo** (= `<project>/scripts/`) | project repo の中だけで完結 | `<project>/scripts/pr-review.sh` (= `$pr-review.sh` で呼ばれる) |
@@ -19,6 +19,51 @@ AI CLI 周りの script を作るとき、 4 つの起動経路のどれに該�
 - **「skill が呼ぶ script は cross-OS / cross-vendor」**: harness は universal repo として `skillshare install` で別マシンに転送される前提。 skill が呼ぶ script は harness 内に置くことで、 別マシンでも同じ手順で動く。
 - **「project 固有 script は project repo に閉じる」**: harness skill が `<project's verifier suite from scripts/ or CI>` と書いているのは、 project ごとに verify chain が違うため。 これを harness 側に置くと universal 性が崩れる。
 - **「個人 CLI は dotconfig」**: PATH 通したい便利 script (= `gh` 拡張のような直叩き utility) は user 環境前提なので dotconfig 側で完結。
+
+## skillshare extras 経由配布
+
+「harness skill / agent から呼ばれる」 script を **harness repo の `scripts/`** に置き、 **skillshare extras** 機能で各 vendor の `~/.<vendor>/scripts/` に配布する。
+
+### 手動セットアップ手順
+
+新環境 (= 別マシン / 別 user) で harness の universal helper script を AI CLI から呼べるようにする手順:
+
+```bash
+# 1. harness repo を clone (= ~/code/harness/ を推奨)
+git clone git@github.com:sat0-hir0/harness ~/code/harness
+
+# 2. extras を init (= harness の scripts/ を source として全 vendor target に登録)
+skillshare extras init scripts \
+  --source ~/code/harness/scripts \
+  --target ~/.claude/scripts \
+  --target ~/.codex/scripts \
+  --target ~/.cursor/scripts \
+  --target ~/.gemini/scripts \
+  --target ~/.agents/scripts \
+  --no-tui --global
+
+# 3. Windows では target ごとに copy mode に変更 (= junction symlink を Python が file open できない問題回避)
+for path in ~/.claude/scripts ~/.codex/scripts ~/.cursor/scripts ~/.gemini/scripts ~/.agents/scripts; do
+  skillshare extras scripts --mode copy --target "$path"
+done
+
+# 4. sync 実行
+skillshare sync extras --force
+```
+
+完了後、 各 vendor の skill / agent から `python ~/.claude/scripts/check-future-plans.py` のように呼べる (= 同じ vendor 内では `~/.<vendor>/scripts/` を参照)。
+
+### user の環境では dotconfig が自動化
+
+Windows の user 個人マシンでは [`dotconfig`](https://github.com/sat0-hir0/dotconfig) が以下を自動化する (= 上記手順を `chezmoi apply` で再現):
+- harness repo の clone (= `before_*-clone-harness.ps1.tmpl`)
+- skillshare extras init + sync (= `after_13-skillshare-sync.ps1.tmpl` 末尾)
+
+dotconfig を使わない環境では上記の手動セットアップで同じ結果になる。
+
+### Windows 制約: copy mode 必須
+
+skillshare の default sync mode は **merge (= symlink)** だが、 Windows の junction symlink を Python から file として open できない (= `Permission denied` / `bad interpreter` エラー)。 そのため **target ごとに `--mode copy` を指定** が Windows 必須。 Mac / Linux では symlink mode で動作する可能性があるが、 cross-OS 一貫性のため全環境 copy mode 推奨。
 
 ## 判定フローチャート
 
