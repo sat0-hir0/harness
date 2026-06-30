@@ -1,7 +1,7 @@
 # Script の配置原則
 
 AI CLI 周りの script を作るとき、 4 つの起動経路のどれに該当するかで配置先が決まる。
-backlog Issue #59 で議論を続けるが、 現状の暫定線引きを以下に記す。
+現状の暫定線引きを以下に記す (= 経緯 / 検証中 item は backlog Issue #59 で管理)。
 
 ## 5 行ルール
 
@@ -50,6 +50,6 @@ script を作りたい
 
 ## 関連
 
-- [`scripts/check-future-plans.py`](../scripts/check-future-plans.py) — 本原則に基づき harness 配下に置いた universal helper の 第 1 例
+- [`scripts/check-future-plans.py`](../scripts/check-future-plans.py) — 本原則に基づき harness 配下に置いた universal helper の実例
 - backlog Issue #59 — 配置原則の確立と既存 script 移管対象の検証
 - [`harness-design.md`](harness-design.md) — harness 全体の設計仕様

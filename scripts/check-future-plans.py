@@ -156,29 +156,31 @@ def is_excluded_line(line: str) -> bool:
     return False
 
 
-def in_fenced_code(lines: list[str], idx: int) -> bool:
-    """Return True if lines[idx] sits inside a ``` fenced block.
+def fence_state(lines: list[str]) -> list[bool]:
+    """Pre-compute whether each line sits inside a ``` fenced block.
 
     Code fences in skill SKILL.md often quote forbidden strings as examples (e.g., the
     YAML schema or a bash invocation literal). These are documentation, not commitments.
+    Pre-computing avoids the O(N^2) cost of re-scanning the file for every line.
     """
-    fence_open = False
-    for i, raw in enumerate(lines):
+    in_fence = False
+    out: list[bool] = []
+    for raw in lines:
         if raw.lstrip().startswith("```"):
-            fence_open = not fence_open
-        if i == idx:
-            return fence_open
-    return False
+            in_fence = not in_fence
+        out.append(in_fence)
+    return out
 
 
 def scan_text(file: str, text: str) -> list[Violation]:
     """Scan the full text of a single file."""
     out: list[Violation] = []
     lines = text.splitlines()
+    fences = fence_state(lines)
     for idx, line in enumerate(lines):
         if is_excluded_line(line):
             continue
-        if in_fenced_code(lines, idx):
+        if fences[idx]:
             continue
         for category, pattern, label in PATTERNS:
             m = pattern.search(line)
@@ -216,17 +218,25 @@ def run_git(args: list[str]) -> str:
 
 
 def diff_files(base: str | None) -> list[str]:
-    """Return the list of files changed in the relevant diff."""
+    """Return the list of files changed in the relevant diff.
+
+    `--base REF` uses two dots (`REF..HEAD`) so we get the files this branch
+    introduced relative to REF, not the merge-base view (three dots).
+    """
     if base:
-        spec = [f"{base}...HEAD"]
+        spec = [f"{base}..HEAD"]
     else:
         spec = ["HEAD"]
     out = run_git(["diff", "--name-only", *spec])
     return [f for f in out.splitlines() if f.strip()]
 
 
-def file_content_at_head(path: str) -> str | None:
-    """Return the working-tree content of a file (current state). None if missing."""
+def file_content_working_tree(path: str) -> str | None:
+    """Return the working-tree content of a file (current state). None if missing.
+
+    Reads the on-disk file, NOT `git show HEAD:<path>`. Callers that want HEAD
+    content must read it explicitly via git.
+    """
     p = Path(path)
     if not p.exists():
         return None
@@ -270,7 +280,7 @@ def main() -> int:
     for f in targets:
         if is_self_reference(f):
             continue
-        content = file_content_at_head(f)
+        content = file_content_working_tree(f)
         if content is None:
             continue
         findings.extend(scan_text(f, content))
