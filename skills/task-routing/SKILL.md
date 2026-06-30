@@ -122,7 +122,7 @@ verdict が `delegate-single` または `Lead-direct` の場合のみ、 hand-of
 
 **題材 Issue の同定 (= 投稿条件)**: 以下を順に確認し、 最初に確定したものを投稿先とする。 フロー 1-2 が確定、 またはフロー 3 でユーザーが (a)/(b) を選択した場合のみ投稿する:
 
-1. `$issue-execute` の hand-off プロンプトに Issue 番号・リポジトリ名が明示注入されている → `sat0-hir0/backlog` へ投稿 (= 最高信頼度)。
+1. `$issue-execute` の hand-off プロンプトに Issue 番号・リポジトリ名が明示注入されている AND 注入された repo 名が **`sat0-hir0/backlog`** である → `sat0-hir0/backlog` へ投稿 (= 最高信頼度)。 注入された repo 名が `sat0-hir0/backlog` 以外なら、 フロー 1 では確定せずフロー 3 に落とす (= 別 project の Issue 番号を backlog に誤投稿しないため)。
 2. ユーザーが当該 session で「#N」「Issue N」「backlog#N」等を明示的に言及しており、 かつ対象が `sat0-hir0/backlog` であることが文脈から確定している → 投稿 (= 高信頼度)。
 3. session の直前の発話に Issue 番号はあるが、 リポジトリが確定していない → 有人なら 3 択を surface: (a) 新規 Issue を起票して投稿 / (b) 既存 Issue に投稿 (番号を指定) / (c) 今回は残さない。 無人 (= ultra-autonomous / `$issue-execute` で人間不在) なら session pause して「題材 Issue が確定していません。 Issue 番号 / リポジトリを明示してから再開してください。」を記録して終了。
 4. 過去 context に偶然 `#N` 文字列が混入しているだけで、 明示的言及がない → **投稿しない** (= 誤爆防止)。

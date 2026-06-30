@@ -321,7 +321,7 @@ session が途中で死んでも **外部記録 (= Issue コメント / commit m
 
 以下を順に確認し、 最初に確定したものを投稿先とする:
 
-1. 外側 boundary skill (= 例: backlog の `$issue-execute`) の hand-off プロンプトに Issue 番号・リポジトリ名が明示注入されている → そのまま投稿 (= 最高信頼度)。
+1. 外側 boundary skill (= 例: backlog の `$issue-execute`) の hand-off プロンプトに Issue 番号・リポジトリ名が明示注入されている AND 注入された repo 名が **その skill の投稿先 repo (= 例: backlog harness では `sat0-hir0/backlog`) と一致する** → そのまま投稿 (= 最高信頼度)。 注入された repo 名が一致しない (= 別 project から hand-off された) なら、 フロー 1 では確定せずフロー 3 に落とす (= 別 project の Issue 番号を誤投稿しないため)。
 2. ユーザーが当該 session で `#N` / Issue 番号を明示的に言及しており、 かつ対象 repo が文脈から確定している → 投稿 (= 高信頼度)。
 3. session の直前の発話に Issue 番号はあるが、 対象 repo が確定していない → 有人なら 3 択を surface (= (a) 新規 Issue 起票 / (b) 既存 Issue に紐付け / (c) 今回は残さない)、 無人 (= ultra-autonomous / cron heartbeat / 自動 session) なら **session pause** して「題材 Issue 未確定」 を記録して終了。
 4. 過去 context に偶然 `#N` 文字列が混入しているだけで、 明示的言及がない → **投稿しない** (= 誤爆防止)。
