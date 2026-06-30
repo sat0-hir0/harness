@@ -215,9 +215,41 @@ verdict が決まったら、 **実装着手前** に project の git 規約を�
 - **Never** `delegate-single` / `delegate-slice` の各 wave で `reviewer` / `qa-verifier` の spawn を省略しない。 **autonomous mode でも省略不可**。 「軽微」 「時間ない」 「自分で見たから OK」 はすべて却下理由 (= 自己レビュー bias で品質落ちる主因)。 spawn 自体を skip して良いのは Lead-direct verdict のときだけ。
 - **Never** `delegate-slice` で ADR を同一 turn で Proposed から Accepted に昇格させない。 起票 = この turn、 昇格 = 別 turn (= user 確認後)。
 - **Never** project 規約が branch を要求するときに main 直 commit しない。 multi-file / 新 feature / 公開挙動変更なら **必ず feature branch**。
+- **Never** 技術 doc / ADR / コード comment / panic msg / `#[ignore]` reason / config comment / skill 例 / 設計案 / report / commit msg / PR body に **マイルストーン / Phase / Wave 名 (= M0-M5, Phase 2, Wave 9-D, Sprint N)** / **将来時制 (= "will be", "later wave", "deferred to ...", "is cut when X")** / **拡張予定 / future-proofing 表現 (= "for future X", "extensible to ...", "may add Y later", "(and any future palette extension)")** を書かない。 詳細は本セクション直下の 「将来予定を書かない」 を参照。 reviewer 系 agent (= qa-expert / performance-engineer / security-auditor / architect / technical-writer) は本ルール違反を **指摘対象** として扱う。
 - **Stop** ユーザー要求が純粋に情報目的 (= 書きなし、 exec なし) なら止める。 この skill は code/docs/state 変更タスク用。
 - **Must** verdict 1 つにつき Y-trace 1 行を添える。 escape valve は自明な Lead-direct (= 1 ファイル typo / mechanical rename) のみ。 「結論だけ来て判断に困る」 という user feedback への構造的対応 (= reasoning trace 長さが perceived difficulty proxy になる業界知見、 Y-Statement format = 5 要素 1 文の MADR 派生)。
 - **Never** Y-trace を MUST にしてすべての判断に重い trade-off 表を要求しない。 1 行 ≒ 30-50 token、 出力肥大を防ぐため形式を 1 行に縛る。
+
+## 将来予定を書かない (= 全 agent 遵守 + reviewer 指摘対象)
+
+### ルール
+
+技術 doc / ADR / コード comment / panic msg / `#[ignore]` reason / config comment / skill 例 / 設計案 / report / commit msg / PR body に、 以下 3 種を **一切書かない**:
+
+1. **マイルストーン / Phase / Wave 名** (= M0-M5, Phase 2, Wave 9, Wave 10-D, Sprint N 等の内部 slice 番号)
+2. **将来時制 commitment** (= "will be implemented", "later wave", "deferred to ...", "is cut when X", 「M5 で再評価」, 「Phase 2 で実装」)
+3. **拡張予定 / future-proofing 説明** (= "for future X", "extensible to ...", "may add Y later", "(and any future palette extension)", 「将来 X に拡張可能」)
+
+**codename rename も不可** (= 「Phase 2 で実装」 → 「次の段階で実装」 のような言い換えは本質温存)。 削除一択。
+
+**OK な表現**:
+- **present-fact / present-state** (= 「currently a small parser」 「not yet implemented」 「ignored until X is implemented」) — 「現状」 を述べているだけで commitment ではない
+- **不確実性表現** (= 「the timeline is uncertain」 「may still be open」) — commitment ではない
+- `$task-routing` の Y-trace `accepting:` 欄の **受け入れる trade-off** (= 「wave 分割で実装期間 1 → 3 セッションに伸びる」) — 判断の現在地を記述しているだけ
+
+### なぜダメか (= 背景、 全 agent に伝達)
+
+1. **AI hallucination の温床**: 一度書かれた 「Wave 6 で対応」 が次 session で 「実装根拠」 として参照される連鎖事故が実例で発生 (= 2026-06 limn で ARCHITECTURE.md → ADR → panic msg → `#[ignore]` reason に 28 file 汚染、 後続 PR sat0-hir0/limn#13 unmerged で close)
+2. **読者の問い合わせ先が repo 内にない**: 「いつ?」 「誰が?」 を聞ける場所が repo に存在しない (= GitHub Issue / Project / ROADMAP が本来の置き場)。 repo 内に書くと嘘になりやすい (= 順番が変わる / codename 自体が消える)
+3. **ADR は過去の判断記録**: 未来 commit を書く場所ではない (= 再評価が必要になったら別 ADR を新規起票するのが governance)
+4. **numeric label rename は本質温存で罠**: 「M2 → Phase 2」 と書き換えても 「いつ」 commitment が repo に残る (= grep / 静的解析が効かないので scope 判断の障害になる)
+
+### How to apply
+
+- 編集時に上記 3 種を見つけたら、 周辺文脈を読んで 「単純削除で文意が通るか / 書き換えが要るか / 章ごと削除すべきか」 を判断。 **機械置換は禁止** (= 文脈なし置換で意味壊れる)
+- 削除した結果コード側に **orphan な panic / `#[ignore]` / 仮実装 comment** が残ったらセットで直す (= reason は 「現在の事実」 で書く)
+- reviewer 系 agent (= qa-expert / performance-engineer / security-auditor / architect / technical-writer) は diff レビュー時に **本ルール違反を指摘対象として扱う**。 「Wave 6 で対応」 「will be implemented」 を見つけたら問題として上げる
+- Lead-direct 経路 (= 直接実装) でも本ルールは同様に適用
 
 ## Helper
 

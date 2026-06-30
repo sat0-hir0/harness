@@ -118,6 +118,8 @@ Phase 1 と Phase 2 の各 claim について、合致する evidence の種類�
 
 Kubernetes UNRESOLVED マーカー + Atlassian DoD known issues に倣う。沈黙は「確認しなかった」とみなす。grep して何もなければ `NONE` と明示する。
 
+grep の対象は 5 種類: (1) TODO / FIXME (Step 4-1)、 (2) `#[ignore]` / xfail (Step 4-2)、 (3) スコープ逸脱 (Step 4-3)、 (4) 先送り項目 (Step 4-4)、 (5) 将来予定 / Wave 名 / 拡張予定 の混入 (Step 4-5)。 すべて沈黙不可。
+
 ### Step 4-1: TODO / FIXME を grep する
 
 - **実行**: 今回の変更で追加された `TODO|FIXME|XXX|HACK` の文字列を `git diff` で検索する。
@@ -136,8 +138,44 @@ Kubernetes UNRESOLVED マーカー + Atlassian DoD known issues に倣う。沈�
 
 ### Step 4-4: 先送り項目を列挙する
 
-- **元の spec 対比**: 明示的に先送りにしたもの (= 「M2 で対応」「リファクタ後に」など)。
-- **出力**: 先送り先とともに列挙する。なければ `NONE`。
+- **元の spec 対比**: 明示的に先送りにしたもの。 ただし **先送り先は必ず repo 外の永続的な置き場** (= GitHub Issue URL / GitHub Project URL / ROADMAP.md セクション名) を **必須記載**。 「M2 で対応」 「次の wave で」 「Phase 2 で再評価」 のような **repo 内の slice 番号 / 将来時制で書かない** (= 詳細は Phase 4-5 参照)。
+- **出力**: `item` (= 先送り対象、 present-fact のみ) + `moved_to` (= URL or ROADMAP.md パス) のペアで列挙する。 なければ `NONE`。
+
+### Step 4-5: 将来予定 / マイルストーン / 拡張予定 の混入を grep する
+
+`$task-routing` Boundary の 「将来予定を書かない」 ルール (= 全 agent 遵守 + reviewer 指摘対象) に基づく出口側の最終チェック。 sibling skill (= `$task-routing`) の規定を本 skill で再掲はしないので、 ルール本文と背景はそちらを参照。 ここでは grep と表面化だけを行う。
+
+- **実行 (= 推奨経路: script)**: harness repo 同梱の `scripts/check-future-plans.py` を実行する (= 検出パターン + 除外ロジック + 自己参照除外を実装、 標準ライブラリのみ依存、 OS / vendor 非依存、 untracked file も default scan に含む)。
+
+  ```bash
+  python <harness>/scripts/check-future-plans.py            # HEAD vs working tree (+ untracked)
+  python <harness>/scripts/check-future-plans.py --base main # main..HEAD
+  python <harness>/scripts/check-future-plans.py --json     # YAML 投入用
+  ```
+
+  exit code: `0` = 違反なし、 `1` = 違反検出 (= 行と category を stdout に列挙)、 `2` = invocation 失敗。
+
+- **実行 (= 非 diff artifact の scan)**: script は `git diff` ベースなので **commit message / PR body** には届かない。 一方 `$task-routing` Boundary はこれらも禁止対象としている。 finish-task では追加で以下を agent 側で手動 check する (= 短いので grep 不要、 目視 / 簡易 regex でよい):
+  - **直近 commit message** (= `git log -1 --format=%B HEAD`): 違反 string が混入していないか
+  - **PR body** (= 起票予定の本文 or 既存 PR の場合は `gh pr view`): 同上
+  - 違反検出時は `unresolved.future_plans_in_artifacts` に `category: <…>` + `file: commit-message@<sha>` or `file: pr-body@<num>` 形式で記録
+
+- **実行 (= fallback: 手動 grep)**: script が使えない環境では agent が以下の文字列パターンを `git diff` 上で手動 grep する。 **検索は case-insensitive** (= `grep -i` / `rg -i`) で行う。 lowercase の `wave 6` / `phase 2` / `sprint 3` も同様に違反扱い。 ただし script 経路と同じ精度を出すには除外条件を意識する必要があるので、 可能なら script を使う。
+  - **マイルストーン / Wave / Phase 名** (= 大文字小文字問わず): `M[0-9]`, `Phase [0-9]`, `Wave [0-9]`, `Sprint [0-9]` 等 (= 内部 slice 番号)。 ただし以下は除外:
+    - present-fact (= 「ignored until X is implemented」)
+    - Y-trace の `accepting:` 欄 (= 「wave 分割で実装期間 1 → 3 セッション」 のような受け入れる trade-off)
+    - **markdown 見出し / セクション番号** (= `## Phase 1: Spec coverage` / `### Step 4-5` / `## Phase 4: Unresolved items` 等の **skill 内構造** であり、 マイルストーン commitment ではない)
+    - **ルール宣言部の literal 引用** (= 本 skill / `$task-routing` 内で 「これらを検出する」 と書いている meta 説明)
+    - **skill 自身の Phase / Step / Wave 構造** (= `skills/*/SKILL.md` / `skills/*/ATTRIBUTION.md` / `docs/` 配下は skill 構造の語彙として Phase / Wave を使うので scan 対象外)
+  - **将来時制 commitment**: `will be`, `later wave`, `deferred to`, `is cut when`, 「M5 で再評価」, 「Phase 2 で実装」 等。
+  - **拡張予定 / future-proofing**: `for future`, `extensible to`, `may add ... later`, 「将来 ... に拡張可能」, 「(and any future ...)」 等。
+- **判定**: 一致を `file:line` + category (= `milestone-name` / `future-tense` / `future-proofing`) + 該当 excerpt で列挙する。 各一致について 3 択ラベルを付ける:
+  - **removed**: 違反 string を削除した (= 章ごと or 該当文ごと削除、 周辺文意も整える)
+  - **kept-as-present-fact**: 違反 string を **present-fact / present-state 表現に書き換えた** (= 「M5 で再評価」 → 「現在未対応」、 「will be implemented in Phase 2」 → 「not yet implemented」)
+  - **escalated**: Lead が判断保留、 user に上げる
+- **出力**: すべての一致を YAML `unresolved.future_plans_in_artifacts` に列挙する。 なければ `NONE`。 grep / script のいずれも実行していなければ `not-grepped` (= 沈黙 = 「確認しなかった」 とみなされる、 NONE と書く資格なし)。
+
+なぜ Phase 4 に組み込むか: 「将来予定混入」 は TODO / FIXME と同種の **時間が経つと嘘になる残骸** (= 順番が変わる、 codename が消える、 担当が変わる)。 grep / 静的解析が効かない場所に書かれると次 session の AI が 「実装根拠」 として参照する hallucination 連鎖の温床になる (= 2026-06 limn で ARCHITECTURE.md → ADR → panic msg → `#[ignore]` reason に 28 file 汚染の実例)。 出口でも grep して残さない。
 
 ## Phase 5: AI usage disclosure
 
@@ -200,6 +238,9 @@ evidence type は `command-output`。 git 操作の結果 (= branch 名 / push �
 - artifact を捏造しては **いけない**。存在しないテスト名、書かれていないログパス、撮っていないスクリーンショットを引用する — すべて hallucination であり禁止。
 - エージェントが技術的に生成できない artifact (= ディスプレイのないエージェントの GUI スクリーンショット) に `produced_by_agent: yes` とマークしては **いけない**。
 - Phase 4 の grep を実行せずに「問題なし」「すべてクリーン」と書いては **いけない**。grep していなければ、知っているとは言えない。
+- Phase 4-5 の future-plans grep を省略しては **いけない**。 `unresolved.future_plans_in_artifacts` を `NONE` と書くには実際に grep して結果が空であることが必要。 未実行なら `not-grepped` と明示する。
+- `unresolved.deferred[].moved_to` を空 / 「次の wave」 / 「Phase 2」 等の repo 内 slice 名で埋めては **いけない**。 GitHub Issue URL / GitHub Project URL / ROADMAP.md セクション名のような repo 外の永続的な置き場を必須とする (= 詳細は `$task-routing` Boundary の 「将来予定を書かない」 参照)。
+- `unresolved.deferred` のスキーマは旧 string list (= `deferred: ["Symlink follow @ Wave 6"]`) から **構造化 object list (= `[{item, moved_to}]`) に変更されている**。 過去 session の YAML record を再利用する場合は手動マイグレーションが必要 (= 旧形式は新 schema として読めない、 機械変換 tool は提供しない)。
 - AI disclosure を省略しては **いけない**。AI がこの作業の一部に関与しているなら、そう言う。
 - evidence を散文にまとめては **いけない**。ユーザーは構造化 artifact を読む。エージェントはそれを説明しない。
 - Phase 4 のセクションにゼロ件の場合は `NONE` を明示 **しなければならない**。沈黙は「確認しなかった」とみなされる。
@@ -257,8 +298,19 @@ finish-task:
   unresolved:
     todos: [<file:line>...] | NONE
     ignored_tests: [<test-name>...] | NONE
-    scope_deviations: [<from → to>...] | NONE
-    deferred: [<item @ target>...] | NONE
+    scope_deviations: [<from → to>...] | NONE                # from / to は present-fact のみ、 Wave 名 / Phase 名禁止
+    deferred:                                                # 先送りは必ず repo 外の永続的な置き場
+      - item: <present-fact、 先送り対象>
+        moved_to: <GitHub Issue URL / GitHub Project URL / ROADMAP.md セクション>
+      | NONE
+    future_plans_in_artifacts:                               # Step 4-5 grep 結果
+      - file: <path>
+        line: <N>
+        excerpt: <該当 string>
+        category: milestone-name | future-tense | future-proofing
+        action: removed | kept-as-present-fact | escalated
+      | NONE
+      | not-grepped                                          # 未実行は NONE と書く資格なし
 
   # Phase 5
   ai_usage:
@@ -294,7 +346,7 @@ finish-task:
 
 ```yaml
 finish-task:
-  task: Add sidebar (Wave 1 of directory tree feature)
+  task: Add sidebar (initial slice of directory tree feature)
   branch: feat/sidebar-walker
   sha: a1b2c3d
 
@@ -306,7 +358,7 @@ finish-task:
     - id: 5
       description: symlinks are followed
       status: abandoned
-      evidence: ADR-0008 records the security trade-off; deferred to LIMN_FEAT_SIDEBAR_SYMLINK
+      evidence: ADR-0008 records the security trade-off; not implemented in current scope (= follow-up tracked at https://github.com/sat0-hir0/backlog/issues/XXX)
 
   uat:
     - id: 1
@@ -332,9 +384,11 @@ finish-task:
     ignored_tests:
       - latency_100k_files (#[ignore]; requires fixture)
     scope_deviations:
-      - Original Wave 1 included symlink support → abandoned per reviewer M3
+      - Original scope included symlink support → abandoned per security reviewer findings (= ADR-0008)
     deferred:
-      - Symlink follow @ Wave 6
+      - item: Symlink follow
+        moved_to: https://github.com/sat0-hir0/backlog/issues/XXX
+    future_plans_in_artifacts: NONE
 
   ai_usage:
     used: yes
@@ -362,7 +416,7 @@ finish-task:
   agent_confidence: medium
   agent_uncertainty_notes: |
     Real-machine acceptance of the sidebar click is not-yet-collected.
-    Symlink follow is abandoned; deferred to Wave 6 with the ADR-0008 trade-off documented.
+    Symlink follow is abandoned in this scope; trade-off documented in ADR-0008, follow-up tracked at https://github.com/sat0-hir0/backlog/issues/XXX.
 ```
 
 ## Related
