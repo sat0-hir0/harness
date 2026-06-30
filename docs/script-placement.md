@@ -26,6 +26,8 @@ AI CLI 周りの script を作るとき、 4 つの起動経路のどれに該�
 
 ### 手動セットアップ手順 (= 別マシン / 別 user 向け)
 
+> 注意: `skillshare sync` / `skillshare extras <name>` は **`.skillshare/config.yaml` がある dir では project mode に自動切替** する。 全コマンドに `--global` を付けるか、 project repo の外で実行する。 以下の例はすべて `--global` 付き。
+
 #### Bash / WSL / Git Bash の場合
 
 ```bash
@@ -44,11 +46,11 @@ skillshare extras init scripts \
 
 # 3. Windows では target ごとに copy mode に変更 (= junction symlink を Python が file open できない問題回避、 Mac / Linux でも cross-OS 一貫性のため copy 推奨)
 for path in ~/.claude/scripts ~/.codex/scripts ~/.cursor/scripts ~/.gemini/scripts ~/.agents/scripts; do
-  skillshare extras scripts --mode copy --target "$path"
+  skillshare extras scripts --mode copy --target "$path" --global
 done
 
 # 4. sync 実行
-skillshare sync extras --force
+skillshare sync extras --force --global
 ```
 
 #### PowerShell 7 (pwsh) の場合
@@ -68,11 +70,11 @@ foreach ($t in $targets) { $initArgs += @('--target', $t) }
 
 # 3. 全 target を copy mode に
 foreach ($t in $targets) {
-  & skillshare extras scripts --mode copy --target $t
+  & skillshare extras scripts --mode copy --target $t --global
 }
 
 # 4. sync 実行
-& skillshare sync extras --force
+& skillshare sync extras --force --global
 ```
 
 完了後、 各 vendor の skill / agent から自分の vendor 配下の path で呼べる (= 例: Claude Code なら `python ~/.claude/scripts/check-future-plans.py`、 Codex なら `python ~/.codex/scripts/check-future-plans.py`)。 agent は自分が動いている vendor を自己認識して path を選ぶ。
@@ -80,7 +82,7 @@ foreach ($t in $targets) {
 ### 冪等性
 
 - **Step 1 (clone)**: 既に clone 済なら skip (= ディレクトリ存在チェック)。
-- **Step 2 (extras init)**: 既に登録済の場合は `skillshare extras init` が error を返すので、 事前に `skillshare extras list | grep -q scripts` で判定して skip。 もしくは `--force` を付ければ上書き init になる。
+- **Step 2 (extras init)**: 既に登録済の場合は `skillshare extras init` が error を返すので、 事前に `skillshare extras list --global | grep -q scripts` で判定して skip。 もしくは `--force` を付ければ上書き init になる。
 - **Step 3 (mode copy)**: target ごとに idempotent (= 既に copy なら no-op)。
 - **Step 4 (sync)**: 冪等 (= `--force` で確実に再配布)。
 
