@@ -48,23 +48,25 @@ class Violation:
 
 
 # Detection patterns. Each entry: (category, compiled regex, human-readable pattern label).
-# Patterns are intentionally narrow to keep false positives low; broaden in tandem with the rule.
+# Patterns are intentionally narrow to keep false positives low; broaden in tandem with the
+# rule. All regexes use IGNORECASE so that lowercase forms like `wave 6` / `phase 2` /
+# `sprint 3` are caught alongside the capitalized canonical form.
 PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
     # --- milestone / Wave / Phase / Sprint names ---
-    ("milestone-name", re.compile(r"\bM[0-9]+(?:-M?[0-9]+)?\b"), r"M<N>(-M<N>)"),
-    ("milestone-name", re.compile(r"\bWave\s+[0-9]+(?:-[A-Z]+)?\b"), r"Wave <N>(-<X>)"),
-    ("milestone-name", re.compile(r"\bSprint\s+[0-9]+\b"), r"Sprint <N>"),
+    ("milestone-name", re.compile(r"\bM[0-9]+(?:-M?[0-9]+)?\b", re.IGNORECASE), r"M<N>(-M<N>)"),
+    ("milestone-name", re.compile(r"\bWave\s+[0-9]+(?:-[A-Z]+)?\b", re.IGNORECASE), r"Wave <N>(-<X>)"),
+    ("milestone-name", re.compile(r"\bSprint\s+[0-9]+\b", re.IGNORECASE), r"Sprint <N>"),
     # `Phase <N>` is intentionally listed but excluded when it sits inside a markdown heading
     # or a code/quote block (see is_excluded_line).
-    ("milestone-name", re.compile(r"\bPhase\s+[0-9]+\b"), r"Phase <N>"),
+    ("milestone-name", re.compile(r"\bPhase\s+[0-9]+\b", re.IGNORECASE), r"Phase <N>"),
     # --- future-tense commitments ---
     ("future-tense", re.compile(r"\bwill be (implemented|added|cut|moved|removed|done)\b", re.IGNORECASE), r"will be <verb>"),
     ("future-tense", re.compile(r"\blater wave\b", re.IGNORECASE), r"later wave"),
     ("future-tense", re.compile(r"\bdeferred to\s+(?!the\b)\w", re.IGNORECASE), r"deferred to <target>"),
     ("future-tense", re.compile(r"\bis cut when\b", re.IGNORECASE), r"is cut when"),
-    ("future-tense", re.compile(r"M[0-9]+\s*で再評価"), r"M<N> で再評価"),
-    ("future-tense", re.compile(r"Phase\s*[0-9]+\s*で実装"), r"Phase <N> で実装"),
-    ("future-tense", re.compile(r"Wave\s*[0-9]+\s*で対応"), r"Wave <N> で対応"),
+    ("future-tense", re.compile(r"M[0-9]+\s*で再評価", re.IGNORECASE), r"M<N> で再評価"),
+    ("future-tense", re.compile(r"Phase\s*[0-9]+\s*で実装", re.IGNORECASE), r"Phase <N> で実装"),
+    ("future-tense", re.compile(r"Wave\s*[0-9]+\s*で対応", re.IGNORECASE), r"Wave <N> で対応"),
     # --- future-proofing / extensibility ---
     ("future-proofing", re.compile(r"\bfor future\s+\w", re.IGNORECASE), r"for future <X>"),
     ("future-proofing", re.compile(r"\bextensible to\b", re.IGNORECASE), r"extensible to"),
@@ -89,19 +91,27 @@ RULE_LITERAL_RE = re.compile(r"`[^`]*(M\[0-9\]|Phase \[0-9\]|Wave \[0-9\])[^`]*`
 # documents below define the rule, quote the patterns, and explain why they are banned —
 # scanning them produces nothing but false positives. Other files in the repo (agent
 # prompts, design docs, READMEs) still get scanned as normal.
+# Files / patterns that describe the rule itself, not its application surface. Listed
+# explicitly so that project-side `docs/` directories (e.g., `docs/adr/0001.md`) are
+# still scanned — only the harness's own meta-docs are exempt.
 _SELF_REFERENCE_RE = re.compile(
     r"""
     (?:^|/)
     (?:
         # The script itself is full of forbidden literals as test patterns.
         scripts/check-future-plans\.py
-      | # Anything under docs/ is meta-documentation about the harness; abstract stage
-        # labels like "Phase 0: 着手" are pedagogical, not milestone commitments.
-        docs/
+      | # Harness-only meta-docs that explain the rule and the harness architecture.
+        # Listed as exact files so that adding new docs requires a conscious decision
+        # rather than silently exempting whatever lands under `docs/`.
+        docs/script-placement\.md
+      | docs/harness-design\.md
+      | docs/diagrams/README\.md
       | # Every skill defines its own internal Phase / Step / Wave vocabulary inside
-        # SKILL.md / ATTRIBUTION.md — those are structure, not commitments.
+        # SKILL.md / ATTRIBUTION.md — those are structure, not commitments. Limited to
+        # the harness's own `skills/` layout (top-level), not project `.skillshare/skills/`
+        # because project-side skills are still subject to the rule.
         skills/[^/]+/(?:SKILL|ATTRIBUTION)\.md
-    )
+    )$
     """,
     re.VERBOSE,
 )
@@ -110,10 +120,10 @@ _SELF_REFERENCE_RE = re.compile(
 def is_self_reference(path: str) -> bool:
     """Return True if the file's job is to describe the rule (not be subject to it).
 
-    The harness repo deliberately uses Phase / Step / Wave as the vocabulary for skill
-    structure and documentation. Treat anything under skills/*/SKILL.md, skills/*/
-    ATTRIBUTION.md, docs/, and the script itself as self-referential. Other files
-    (agents/*.md, README.md, project-side files) are still subject to scanning.
+    Only the harness's own meta-docs (script-placement.md / harness-design.md /
+    diagrams README), top-level `skills/*/SKILL.md` and `skills/*/ATTRIBUTION.md`,
+    and the script itself are exempt. Project-side `docs/` and project-side skills
+    are still scanned, because that is where the rule actually needs to bite.
     """
     normalised = path.replace("\\", "/")
     return _SELF_REFERENCE_RE.search(normalised) is not None
@@ -221,14 +231,26 @@ def diff_files(base: str | None) -> list[str]:
     """Return the list of files changed in the relevant diff.
 
     `--base REF` uses two dots (`REF..HEAD`) so we get the files this branch
-    introduced relative to REF, not the merge-base view (three dots).
+    introduced relative to REF, not the merge-base view (three dots). The default
+    (no --base) also includes untracked files via `git ls-files --others
+    --exclude-standard`, because finish-task typically runs pre-commit when a
+    brand-new doc is still untracked and would otherwise slip past the check.
     """
     if base:
         spec = [f"{base}..HEAD"]
-    else:
-        spec = ["HEAD"]
-    out = run_git(["diff", "--name-only", *spec])
-    return [f for f in out.splitlines() if f.strip()]
+        out = run_git(["diff", "--name-only", *spec])
+        return [f for f in out.splitlines() if f.strip()]
+
+    diff_out = run_git(["diff", "--name-only", "HEAD"])
+    untracked_out = run_git(["ls-files", "--others", "--exclude-standard"])
+    seen: set[str] = set()
+    result: list[str] = []
+    for line in (*diff_out.splitlines(), *untracked_out.splitlines()):
+        f = line.strip()
+        if f and f not in seen:
+            seen.add(f)
+            result.append(f)
+    return result
 
 
 def file_content_working_tree(path: str) -> str | None:
