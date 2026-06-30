@@ -306,14 +306,64 @@ session が途中で死んでも **外部記録 (= Issue コメント / commit m
 
 `delegate-slice` の着手 Plan は `$task-slicing` のみが投稿する (= `$task-routing` は投稿しない、 明示スキップ)。 `delegate-single` / `Lead-direct` は `$task-routing` が軽量版 (= wave なし、 アプローチ + Agent chain + ADR) を投稿。
 
-### 条件節 (= 他 project への誤投稿防止)
+### 投稿目的 (= なぜ書くか)
 
-`$task-routing` / `$task-slicing` / `$wave-status` は **複数プロジェクトで共用される汎用 skill** (= 本 repo 配下に置かれる universal な存在)。 外部記録への投稿は以下の **2 条件の AND** が確定した場合のみ、 それ以外はスキップ:
+`$task-routing` / `$task-slicing` / `$wave-status` が外部記録 (= GitHub Issue コメント等) に書く目的は 2 つ:
 
-- (1) **外側レイヤー (= boundary skill) から hand-off された context である** (= 要求 ID / プロジェクト identifier が明示的に注入されている。 過去 context の偶然のマッチでは不可)。
-- (2) **対象プロジェクトが外部記録メディアを持つことが hand-off で明示されている** (= リポジトリ名 / Issue 番号 / 投稿先 API 等)。
+(1) **透明性担保**: Lead が下した判断 (= verdict / slice plan / wave 構成変動) を、 session がリセットされても外部記録から追える状態にする。
+(2) **作業・判断履歴担保**: 着手判断 / ADR 起票 / dropped 判断などを Issue を見るだけで時系列で追えるようにし、 Lead の頭の中だけに残さない。
 
-どちらか未確定なら投稿しない (= 想定外のプロジェクトで投稿 API が誤爆するのを防ぐ。 各 skill の Boundary に明記する)。
+この 2 目的のどちらにも貢献しない投稿 (= 単純進行 done / in-progress マーク等) は書かない (= 過剰投稿防止)。
+
+### 題材 Issue の同定フロー (= 投稿先決定、 旧 「2 条件 AND」 を置き換え)
+
+`$task-routing` / `$task-slicing` / `$wave-status` は **複数プロジェクトで共用される汎用 skill**。 投稿先 (= 題材 Issue) の決定を **出自 (= どの skill から呼ばれたか) ではなく、 投稿価値のある判断が発生した時点で能動的に Issue を同定する** 方針に倒す。
+
+以下を順に確認し、 最初に確定したものを投稿先とする:
+
+1. 外側 boundary skill (= 例: backlog の `$issue-execute`) の hand-off プロンプトに Issue 番号・リポジトリ名が明示注入されている AND 注入された repo 名が **その skill の投稿先 repo (= 例: backlog harness では `sat0-hir0/backlog`) と一致する** → そのまま投稿 (= 最高信頼度)。 注入された repo 名が一致しない (= 別 project から hand-off された) なら、 フロー 1 では確定せずフロー 3 に落とす (= 別 project の Issue 番号を誤投稿しないため)。
+2. ユーザーが当該 session で `#N` / Issue 番号を明示的に言及しており、 かつ対象 repo が文脈から確定している → 投稿 (= 高信頼度)。
+3. session の直前の発話に Issue 番号はあるが、 対象 repo が確定していない → 有人なら 3 択を surface (= (a) 新規 Issue 起票 / (b) 既存 Issue に紐付け / (c) 今回は残さない)、 無人 (= ultra-autonomous / cron heartbeat / 自動 session) なら **session pause** して「題材 Issue 未確定」 を記録して終了。
+4. 過去 context に偶然 `#N` 文字列が混入しているだけで、 明示的言及がない → **投稿しない** (= 誤爆防止)。
+5. Issue 番号が存在しない → **投稿しない**。
+
+フロー 1-2 が確定、 またはフロー 3 でユーザーが (a)/(b) を選択した場合のみ投稿を実行する。 想定外のプロジェクトで投稿 API が誤爆するのを防ぐため、 投稿先 repo は各 skill 文面で **固定** する (= 例: backlog harness では `sat0-hir0/backlog` 固定)。
+
+### 投稿価値のある判断 (= 投稿対象イベント) と escape valve
+
+投稿対象 (= 構造的判断):
+- slice plan 生成 (= 新規 wave 構成の確定)
+- Plan 更新 (= wave の追加 / dropped / blocked / 順序変更)
+- ADR 起票判断 (= Proposed 起票を決定した事実)
+- verdict 判断の確定 (= Lead-direct / delegate-single)
+- Wave 着手判断の根拠 (= 計画外の構造的判断)
+
+投稿対象外 (= 些末判断、 過剰 surface 防止の escape valve):
+- mid-implementation の些末判断 (= lint fix / typo 修正 / test 1 件追加 / 関数名 rename 等)
+- done / in-progress への単純進行マーク
+- 計画通りに次 wave へ進む行為
+
+### Posture (= 沈黙より投稿)
+
+デフォルトは **投稿側に倒す**。 user に明示的に「不要」 と言われない限り、 投稿価値のある判断は投稿 / 立ち戻りを行う。 沈黙すると判断が消えるため、 「迷ったら投稿」 が原則。
+
+### 3 択 (c) 「今回は残さない」 を選んだ場合の session 内記録
+
+surface 直後の chat に Lead が以下の 1 行 log を必ず出す (= 履歴担保の最低保証):
+
+> 📝 透明性 / 履歴担保の放棄を user が許容 (= 判断「<1 行要約>」 を Issue に残さない選択)。 session 内のみで完結。
+
+これにより (c) を選んだ事実そのものが session 内に残る (= 後から「なぜ Issue に紐付けなかったか」 が追える)。
+
+### 無人実行時の Lead 独断禁止 原則
+
+無人 (= ultra-autonomous / cron heartbeat / boundary skill 経由で人間不在) では、 Lead が以下を **絶対に独断で行わない**:
+- 題材 Issue 不明時に自動で `$issue-from-idea` 等を呼んで新規 Issue を起こす (= 透明性 / 履歴担保の放棄を AI 単独で決めるのは原則違反)。
+- 「曖昧だから今回はスキップしておこう」 と投稿を黙って省略する (= 沈黙は最悪の選択肢)。
+
+代わりに session pause + surface message「題材 Issue 未確定」 を記録して session を終了する。 透明性 / 履歴担保の放棄は user 判断専属。
+
+### 投稿先・フォーマットのプロジェクト固有性
 
 具体的な投稿先 (= Issue コメント / commit message / Slack / その他) と投稿フォーマット (= 見出し / 絵文字 / 構造) は **プロジェクト固有**。 各プロジェクト repo の boundary skill とプロジェクト doc で定義する (= 例: backlog プロジェクトでは GitHub Issue コメントに `📋` / `🔄` / `🎯` 絵文字付きで投稿)。
 
