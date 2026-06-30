@@ -102,16 +102,51 @@ Step 1-1 NO  AND  Step 1-2 YES  AND  Step 1-3 YES   → Lead-direct
   - **必須**: 各 wave で **reviewer + qa-verifier を必ず spawn** する。 wave スキップ (= 「この wave は小さいから reviewer 省略」) は **不可**。
   - **ADR が要る wave**: `$adr-proposal` 等で **Proposed として起票だけ** する。 **Accepted 昇格は別 turn で user 確認後** に行う (= 同一 turn で起票から昇格まで通すと user の design judgement 機会を奪う)。
 
-#### Issue コメント投稿 (= 「📋 着手 Plan」 軽量版、 backlog harness 経由時のみ)
+#### Issue コメント投稿 (= 「📋 着手 Plan」 軽量版)
 
-verdict が `delegate-single` または `Lead-direct` の場合のみ、 hand-off 実行後 (= architect spawn 前。 `Lead-direct` は実装着手前) に 「📋 着手 Plan」 の軽量版 (= wave なし) を Issue に 1 回コメントする。 session が途中で死んでも着手内容を Issue から追えるようにするため。
+##### 投稿目的
+
+本 skill が Issue にコメントする目的は 2 つ:
+(1) **透明性担保**: Lead が下した verdict 判断 (= delegate-single / Lead-direct) を、 session がリセットされても追えるようにする。
+(2) **作業・判断履歴担保**: verdict / ADR 起票 / 着手判断 など、 Issue を見るだけで判断の流れが分かる状態を保つ。
+
+**投稿価値のある判断 (= 投稿対象イベント)**:
+- verdict 判断の確定 (= Lead-direct / delegate-single)
+- ADR 起票判断 (= Proposed 起票を決定した事実)
+- 着手判断の根拠 (= 計画外の構造的判断が発生した場合)
+
+verdict が `delegate-single` または `Lead-direct` の場合のみ、 hand-off 実行後 (= architect spawn 前。 `Lead-direct` は実装着手前) に 「📋 着手 Plan」 の軽量版 (= wave なし) を Issue に 1 回コメントする。
 
 - **verdict が `delegate-slice` の場合は、 この投稿を実行しない** (= スキップ。 `$task-slicing` Phase 3-4 が wave 付きの 「📋 着手 Plan」 を投稿するため、 ここで投稿すると二重になる)。 `$issue-execute` の hand-off プロンプトは task-routing → task-slicing を連続で走らせる構造なので、 task-routing が Phase 3-2 に到達した上で task-slicing も Phase 3-4 を走る。 明示的にスキップしないと二重投稿する。
-- **投稿条件 (= 2 条件の AND、 他 project への誤投稿防止)**: 投稿前に以下の両方を確認し、 確定していなければ **投稿をスキップ** する:
-  - (1) `$issue-execute` から hand-off された context である (= Issue 番号が明示的に注入されている。 過去 context に偶然 `#N` 文字列があるだけでは不可)。
-  - (2) 対象リポジトリが **`sat0-hir0/backlog`** である (= リポジトリ名が hand-off で明示されている)。
-  - 両方が確定していなければ投稿しない (= 他 project で `gh issue comment` が誤爆して失敗するのを防ぐ)。
 - **既存の 「🤖 session 開始」 コメント (= branch/worktree/session 証跡専用) とは別コメント**。 二重投稿しない。
+
+**題材 Issue の同定 (= 投稿条件)**: 以下を順に確認し、 最初に確定したものを投稿先とする。 フロー 1-2 が確定、 またはフロー 3 でユーザーが (a)/(b) を選択した場合のみ投稿する:
+
+1. `$issue-execute` の hand-off プロンプトに Issue 番号・リポジトリ名が明示注入されている → `sat0-hir0/backlog` へ投稿 (= 最高信頼度)。
+2. ユーザーが当該 session で「#N」「Issue N」「backlog#N」等を明示的に言及しており、 かつ対象が `sat0-hir0/backlog` であることが文脈から確定している → 投稿 (= 高信頼度)。
+3. session の直前の発話に Issue 番号はあるが、 リポジトリが確定していない → 有人なら 3 択を surface: (a) 新規 Issue を起票して投稿 / (b) 既存 Issue に投稿 (番号を指定) / (c) 今回は残さない。 無人 (= ultra-autonomous / `$issue-execute` で人間不在) なら session pause して「題材 Issue が確定していません。 Issue 番号 / リポジトリを明示してから再開してください。」を記録して終了。
+4. 過去 context に偶然 `#N` 文字列が混入しているだけで、 明示的言及がない → **投稿しない** (= 誤爆防止)。
+5. Issue 番号が存在しない → **投稿しない**。
+
+フロー 1-2 が確定、 またはフロー 3 でユーザーが (a)/(b) を選択した場合のみ投稿を実行する。 投稿先リポジトリは `sat0-hir0/backlog` 固定。 他リポジトリへは投稿しない。
+
+posture: **user に明示的に「不要」 と言われない限り、 投稿価値のある判断は投稿 / 立ち戻りを行う** (= デフォルトは投稿側に倒す、 沈黙すると判断が消える)。
+
+**3 択 (c) 「今回は残さない」 を選んだ場合の session 内記録**: surface 直後の chat に Lead が以下の 1 行 log を必ず出す (= 履歴担保の最低保証):
+
+> 📝 透明性 / 履歴担保の放棄を user が許容 (= 判断「<1 行要約>」を Issue に残さない選択)。 session 内のみで完結。
+
+これにより、 (c) を選んだ事実そのものが session 内に残る (= 後から「なぜ Issue に紐付けなかったか」 が追える)。
+
+**「計画外の判断」 の定義 (= escape valve、 過剰 surface 防止)**:
+- ✅ 投稿対象: verdict 確定 / ADR 起票判断 / 大幅な scope 逸脱判断 のような **構造的判断**。
+- ❌ 投稿対象外: mid-implementation の些末判断 (= lint fix / typo 修正 / test 1 件追加 / 関数名 rename / git commit メッセージ調整 等)。 これらは「計画外」 ではなく「計画内の通常進行」。
+
+**無人実行時の Lead 独断禁止 原則**: 無人 (= ultra-autonomous / cron heartbeat / `$issue-execute` で人間不在) では、 Lead が以下を **絶対に独断で行わない**:
+- 題材 Issue 不明時に自動で `$issue-from-idea` を呼んで新規 Issue を起こす (= 透明性 / 履歴担保の放棄を AI 単独で決めるのは原則違反)。
+- 「曖昧だから今回はスキップしておこう」 と投稿を黙って省略する (= 沈黙は最悪の選択肢)。
+
+代わりに session pause + surface message「題材 Issue 未確定」 を記録して session を終了する。 透明性 / 履歴担保の放棄は user 判断専属。
 
 ```bash
 gh issue comment <N> --repo sat0-hir0/backlog --body "📋 着手 Plan (軽量版)

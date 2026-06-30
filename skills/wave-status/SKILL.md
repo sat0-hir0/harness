@@ -92,10 +92,47 @@ plan_source: <スライス計画の場所>   # optional
 
 - **再スライス経由で呼ばれた場合は投稿しない** (= `$task-slicing` の再呼び出し → slice plan 更新 → 本 skill で wave を dropped/blocked に変更、 という流れでは `$task-slicing` 側が既に 「🔄 Plan 更新」 を投稿済み、 task-slicing SKILL.md Plan 更新節参照)。 同一イベントで二重投稿しない。
 - **done / in-progress への変更では投稿しない** (= wave が予定通り進んだだけの単純進行は過剰投稿防止のため記録しない)。 投稿対象は **dropped / blocked / 追加** のような構成変動のみ。
-- **投稿条件 (= 2 条件の AND、 他 project への誤投稿防止)**: 投稿前に以下の両方を確認し、 確定していなければ **スキップ** する:
-  - (1) `$issue-execute` から hand-off された context である (= Issue 番号が明示的に注入されている。 過去 context に偶然 `#N` 文字列があるだけでは不可)。
-  - (2) 対象リポジトリが **`sat0-hir0/backlog`** である (= リポジトリ名が hand-off で明示されている)。
-  - 本 skill は汎用なので、 上記 2 条件が確定しない文脈では投稿しない (= 他 project で `gh issue comment` が誤爆して失敗するのを防ぐ)。
+#### 投稿目的
+
+本 skill が Issue にコメントする目的は 2 つ:
+(1) **透明性担保**: Lead が下した wave 構成変動の判断を、 session がリセットされても追えるようにする。
+(2) **作業・判断履歴担保**: dropped / blocked / 追加 / 順序変更 のような wave 構成変動を、 Issue を見るだけで判断の流れが分かる状態を保つ。
+
+**投稿価値のある判断 (= 投稿対象イベント)**:
+- wave 構成変動 (= dropped / blocked / 追加 / 順序変更)
+- 計画外の判断が発生 (= 例: Wave 追加判断の根拠)
+
+**投稿しないイベント**:
+- done / in-progress への単純進行マーク
+- 計画通りに次 wave へ進む行為
+
+**題材 Issue の同定 (= 投稿条件)**: 以下を順に確認し、 最初に確定したものを投稿先とする。 フロー 1-2 が確定、 またはフロー 3 でユーザーが (a)/(b) を選択した場合のみ投稿する:
+
+1. `$issue-execute` の hand-off プロンプトに Issue 番号・リポジトリ名が明示注入されている → `sat0-hir0/backlog` へ投稿 (= 最高信頼度)。
+2. ユーザーが当該 session で「#N」「Issue N」「backlog#N」等を明示的に言及しており、 かつ対象が `sat0-hir0/backlog` であることが文脈から確定している → 投稿 (= 高信頼度)。
+3. session の直前の発話に Issue 番号はあるが、 リポジトリが確定していない → 有人なら 3 択を surface: (a) 新規 Issue を起票して投稿 / (b) 既存 Issue に投稿 (番号を指定) / (c) 今回は残さない。 無人 (= ultra-autonomous / `$issue-execute` で人間不在) なら session pause して「題材 Issue が確定していません。 Issue 番号 / リポジトリを明示してから再開してください。」を記録して終了。
+4. 過去 context に偶然 `#N` 文字列が混入しているだけで、 明示的言及がない → **投稿しない** (= 誤爆防止)。
+5. Issue 番号が存在しない → **投稿しない**。
+
+フロー 1-2 が確定、 またはフロー 3 でユーザーが (a)/(b) を選択した場合のみ投稿を実行する。 投稿先リポジトリは `sat0-hir0/backlog` 固定。 他リポジトリへは投稿しない。
+
+posture: **user に明示的に「不要」 と言われない限り、 投稿価値のある判断は投稿 / 立ち戻りを行う** (= デフォルトは投稿側に倒す、 沈黙すると判断が消える)。
+
+**3 択 (c) 「今回は残さない」 を選んだ場合の session 内記録**: surface 直後の chat に Lead が以下の 1 行 log を必ず出す (= 履歴担保の最低保証):
+
+> 📝 透明性 / 履歴担保の放棄を user が許容 (= 判断「<1 行要約>」を Issue に残さない選択)。 session 内のみで完結。
+
+これにより、 (c) を選んだ事実そのものが session 内に残る (= 後から「なぜ Issue に紐付けなかったか」 が追える)。
+
+**「計画外の判断」 の定義 (= escape valve、 過剰 surface 防止)**:
+- ✅ 投稿対象: wave 構成変動 (= dropped / blocked / 追加 / 順序変更) を伴う **構造的判断**。
+- ❌ 投稿対象外: mid-implementation の些末判断 (= lint fix / typo 修正 / test 1 件追加 / 関数名 rename 等)。 これらは「計画外」 ではなく「計画内の通常進行」。
+
+**無人実行時の Lead 独断禁止 原則**: 無人 (= ultra-autonomous / cron heartbeat / `$issue-execute` で人間不在) では、 Lead が以下を **絶対に独断で行わない**:
+- 題材 Issue 不明時に自動で `$issue-from-idea` を呼んで新規 Issue を起こす (= 透明性 / 履歴担保の放棄を AI 単独で決めるのは原則違反)。
+- 「曖昧だから今回はスキップしておこう」 と投稿を黙って省略する (= 沈黙は最悪の選択肢)。
+
+代わりに session pause + surface message「題材 Issue 未確定」 を記録して session を終了する。 透明性 / 履歴担保の放棄は user 判断専属。
 
 ```bash
 gh issue comment <N> --repo sat0-hir0/backlog --body "🔄 Plan 更新
@@ -135,7 +172,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "🔄 Plan 更新
 - **Must** 冪等であること。既に `done` の wave を再度 `done` にしてもエラーにしない (= Log には touch を記録する)。
 - **Never** `done` / `in-progress` への変更で Issue コメントしない (= 過剰投稿防止。 「🔄 Plan 更新」 コメントは dropped / blocked / 追加 のような wave 構成変動時のみ、 Step 2-3)。
 - **Never** 再スライス (= `$task-slicing` 再呼び出し) 経由の mark で 「🔄 Plan 更新」 を投稿しない (= `$task-slicing` 側が投稿済み、 二重投稿排除)。 本 skill が投稿するのは `$task-slicing` を経由しない直接 mark の構成変動のみ (= Step 2-3)。
-- **Never** backlog 以外の project で Issue コメントを投稿しない。 投稿は **(1) `$issue-execute` から Issue 番号が明示注入されている AND (2) 対象リポジトリが `sat0-hir0/backlog`** の 2 条件 AND が確定した場合のみ。 過去 context に偶然 `#N` があるだけでは投稿しない (= 誤爆防止)。 未確定なら Step 2-3 をスキップ。
+- **Never** backlog 以外の project で Issue コメントを投稿しない。 投稿先は `sat0-hir0/backlog` 固定。 投稿は Step 2-3 の「題材 Issue 同定フロー」1-2 が確定した場合、 またはフロー 3 でユーザーが (a)/(b) を選択した場合のみ。 過去 context に偶然 `#N` があるだけ (= フロー 4) では投稿しない (= 誤爆防止)。 フロー 3 で有人なら 3 択 surface、 無人なら session pause。
 
 ## Helper
 
