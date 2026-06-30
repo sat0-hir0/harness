@@ -24,9 +24,9 @@ AI CLI 周りの script を作るとき、 4 つの起動経路のどれに該�
 
 「harness skill / agent から呼ばれる」 script を **harness repo の `scripts/`** に置き、 **skillshare extras** 機能で各 vendor の `~/.<vendor>/scripts/` に配布する。
 
-### 手動セットアップ手順
+### 手動セットアップ手順 (= 別マシン / 別 user 向け)
 
-新環境 (= 別マシン / 別 user) で harness の universal helper script を AI CLI から呼べるようにする手順:
+#### Bash / WSL / Git Bash の場合
 
 ```bash
 # 1. harness repo を clone (= ~/code/harness/ を推奨)
@@ -42,7 +42,7 @@ skillshare extras init scripts \
   --target ~/.agents/scripts \
   --no-tui --global
 
-# 3. Windows では target ごとに copy mode に変更 (= junction symlink を Python が file open できない問題回避)
+# 3. Windows では target ごとに copy mode に変更 (= junction symlink を Python が file open できない問題回避、 Mac / Linux でも cross-OS 一貫性のため copy 推奨)
 for path in ~/.claude/scripts ~/.codex/scripts ~/.cursor/scripts ~/.gemini/scripts ~/.agents/scripts; do
   skillshare extras scripts --mode copy --target "$path"
 done
@@ -51,15 +51,44 @@ done
 skillshare sync extras --force
 ```
 
-完了後、 各 vendor の skill / agent から `python ~/.claude/scripts/check-future-plans.py` のように呼べる (= 同じ vendor 内では `~/.<vendor>/scripts/` を参照)。
+#### PowerShell 7 (pwsh) の場合
 
-### user の環境では dotconfig が自動化
+```powershell
+# 1. harness repo を clone (= ~/code/harness/ を推奨)
+git clone git@github.com:sat0-hir0/harness "$env:USERPROFILE\code\harness"
 
-Windows の user 個人マシンでは [`dotconfig`](https://github.com/sat0-hir0/dotconfig) が以下を自動化する (= 上記手順を `chezmoi apply` で再現):
-- harness repo の clone (= `before_*-clone-harness.ps1.tmpl`)
-- skillshare extras init + sync (= `after_13-skillshare-sync.ps1.tmpl` 末尾)
+# 2. extras を init
+$targets = @(
+  '~/.claude/scripts', '~/.codex/scripts', '~/.cursor/scripts',
+  '~/.gemini/scripts', '~/.agents/scripts'
+)
+$initArgs = @('extras', 'init', 'scripts', '--source', "$env:USERPROFILE\code\harness\scripts", '--no-tui', '--global')
+foreach ($t in $targets) { $initArgs += @('--target', $t) }
+& skillshare @initArgs
 
-dotconfig を使わない環境では上記の手動セットアップで同じ結果になる。
+# 3. 全 target を copy mode に
+foreach ($t in $targets) {
+  & skillshare extras scripts --mode copy --target $t
+}
+
+# 4. sync 実行
+& skillshare sync extras --force
+```
+
+完了後、 各 vendor の skill / agent から自分の vendor 配下の path で呼べる (= 例: Claude Code なら `python ~/.claude/scripts/check-future-plans.py`、 Codex なら `python ~/.codex/scripts/check-future-plans.py`)。 agent は自分が動いている vendor を自己認識して path を選ぶ。
+
+### 冪等性
+
+- **Step 1 (clone)**: 既に clone 済なら skip (= ディレクトリ存在チェック)。
+- **Step 2 (extras init)**: 既に登録済の場合は `skillshare extras init` が error を返すので、 事前に `skillshare extras list | grep -q scripts` で判定して skip。 もしくは `--force` を付ければ上書き init になる。
+- **Step 3 (mode copy)**: target ごとに idempotent (= 既に copy なら no-op)。
+- **Step 4 (sync)**: 冪等 (= `--force` で確実に再配布)。
+
+つまり 「2 回目以降の apply では Step 4 だけで OK」、 もしくは全 step を毎回叩いても冪等性のため壊れない。
+
+### dotconfig による自動化 (= 個人 user 環境)
+
+Windows の user 個人マシンでは [`dotconfig`](https://github.com/sat0-hir0/dotfiles) が上記手順を `chezmoi apply` で自動化している (= harness の clone + skillshare extras の init / mode copy / sync をまとめて実行)。 dotconfig を使わない環境では上記の手動セットアップで同じ結果になる。
 
 ### Windows 制約: copy mode 必須
 
