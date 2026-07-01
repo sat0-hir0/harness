@@ -1,0 +1,10 @@
+# pre-push gate: when the push range touches a skill's SKILL.md or agents/*.md,
+# run that skill's (or every skill's, on an agent change) eval regression and
+# stop the push on baseline drift. Range detection lives entirely in the script.
+pre-push:
+  commands:
+    eval-gate:
+      # git feeds the push plan (`<local_ref> <local_sha> <remote_ref>
+      # <remote_sha>` lines) on stdin; use_stdin forwards it to the script.
+      use_stdin: true
+      run: python scripts/eval-gate.py

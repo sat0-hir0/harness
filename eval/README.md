@@ -123,6 +123,28 @@ python eval-regression.py --skill all --judge
 
 `snapshots/` は `.gitignore` 済みの派生物。 `baseline/` と `cases/` を commit する。
 
+## pre-push regression gate (= 自動化)
+
+`eval-regression.py` を **pre-push hook** に接続し、 skill / agent を触った push を
+baseline drift で自動ブロックする。 hook は [lefthook](https://github.com/evilmartians/lefthook)
+経由 (= repo root の `lefthook.yml`) で `scripts/eval-gate.py` を呼ぶ。
+
+- `eval-gate.py` は push する range の変更ファイルを検査し、 eval 対象を判定する:
+  - `skills/<name>/SKILL.md` の変更 → その skill の regression のみ起動
+  - `agents/*.md` の変更 → 全 skill (`--skill all`) に fan-out
+  - skill / agent の変更が無い push → skip (= exit 0)
+- 対象 skill の `eval-regression.py` が drift / baseline 欠落を検出 (= exit 非 0) すると
+  push をブロック (= exit 1)。 意図した変更なら `eval-baseline.py` で baseline を
+  更新してから push する。
+
+```bash
+lefthook install                              # .git/hooks/pre-push を生成
+python scripts/eval-gate.py --range A..B       # 手動で range を検証 (= dry-run)
+```
+
+pre-push hook は git が push plan (`<local_ref> <local_sha> <remote_ref> <remote_sha>`)
+を stdin で渡すのを読む。 手動検証では stdin を空にして `--range` を使う。
+
 ## 依存
 
 - Python 3.11
