@@ -41,6 +41,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILL_RE = re.compile(r"skills/([^/]+)/SKILL\.md$")
 AGENT_RE = re.compile(r"agents/.+\.md$")
 
+# Well-known SHA of git's empty tree. Hardcoding avoids `hash-object /dev/null`,
+# which fails on Windows because `/dev/null` is not a valid filesystem path.
+EMPTY_TREE_SHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
 
 def is_all_zero(sha: str) -> bool:
     """Return True for git's all-zero SHA (branch create / delete sentinel).
@@ -59,12 +63,6 @@ def run_git(args: list[str]) -> subprocess.CompletedProcess[str]:
         text=True,
         cwd=str(REPO_ROOT),
     )
-
-
-def all_tracked_files() -> list[str]:
-    """Return every tracked file (fallback when no merge-base exists)."""
-    proc = run_git(["ls-files"])
-    return [f for f in proc.stdout.splitlines() if f.strip()]
 
 
 def diff_files(base: str, tip: str) -> list[str]:
@@ -111,7 +109,8 @@ def ranges_from_stdin(lines: list[str]) -> list[tuple[str, str]]:
     Each line is `<local_ref> <local_sha> <remote_ref> <remote_sha>`.
     - local all-zero  -> branch deletion push, skipped.
     - remote all-zero -> new branch; base = merge-base(local, origin/main),
-      falling back to every tracked file when no merge-base exists.
+      falling back to git's empty tree when no merge-base exists (= fresh
+      repo with no shared history).
     - otherwise        -> base = remote_sha.
     """
     ranges: list[tuple[str, str]] = []
@@ -126,14 +125,8 @@ def ranges_from_stdin(lines: list[str]) -> list[tuple[str, str]]:
             base = merge_base(local_sha, "origin/main")
             if base is None:
                 # No shared history (fresh repo): evaluate against every tracked
-                # file by using the empty tree as base.
-                empty_tree = run_git(["hash-object", "-t", "tree", "/dev/null"])
-                base = empty_tree.stdout.strip() or None
-            if base is None:
-                # Even the empty-tree probe failed; treat all tracked files as
-                # changed so the gate errs toward running.
-                ranges.append(("__ALL__", local_sha))
-                continue
+                # file by using git's well-known empty tree as base.
+                base = EMPTY_TREE_SHA
             ranges.append((base, local_sha))
         else:
             ranges.append((remote_sha, local_sha))
@@ -141,16 +134,8 @@ def ranges_from_stdin(lines: list[str]) -> list[tuple[str, str]]:
 
 
 def changed_files(ranges: list[tuple[str, str]]) -> set[str]:
-    """Resolve ranges to a file set, honoring the __ALL__ fallback sentinel."""
-    changed: set[str] = set()
-    real_ranges: list[tuple[str, str]] = []
-    for base, tip in ranges:
-        if base == "__ALL__":
-            changed.update(all_tracked_files())
-        else:
-            real_ranges.append((base, tip))
-    changed.update(files_for_ranges(real_ranges))
-    return changed
+    """Resolve ranges to the union of changed files."""
+    return files_for_ranges(ranges)
 
 
 def targets_for(files: set[str]) -> list[str]:
