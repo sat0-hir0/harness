@@ -1,0 +1,11 @@
+case_id: 3
+expected_no_trigger:
+- task-routing
+expected_output:
+  explicit_yes: not-confirmed
+  proceeds_to_handoff: false
+  six_axes_written: true
+expected_trigger: intent-clarify
+input: とりあえずいきましょうか (曖昧な相槌のみ)
+skill: intent-clarify
+snapshot_id: intent-clarify-3

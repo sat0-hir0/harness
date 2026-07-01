@@ -1,0 +1,15 @@
+case_id: 1
+expected_no_trigger:
+- commit-message
+expected_output:
+  adr_count: 2
+  all_waves_uat_able: true
+  first_wave_uat_manner: debug-surface
+  impact_scope: public-behaviour
+  produces_slice_plan: true
+  size: L
+  wave_count: 7
+expected_trigger: task-slicing
+input: ディレクトリツリーフィーチャーを wave に切ってください
+skill: task-slicing
+snapshot_id: task-slicing-1

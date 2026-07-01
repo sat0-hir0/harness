@@ -1,0 +1,14 @@
+case_id: 4
+expected_no_trigger:
+- finish-task
+expected_output:
+  breaking: false
+  references:
+  - '#142'
+  scope: release
+  subject: release-please PR title pinned to v0.X format
+  type: fix
+expected_trigger: commit-message
+input: 'diff: release-please PR title を v0.X 形式に pin (conventional-commits check 修正)'
+skill: commit-message
+snapshot_id: commit-message-4

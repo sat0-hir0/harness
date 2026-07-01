@@ -1,0 +1,12 @@
+case_id: 1
+expected_no_trigger:
+- task-routing
+expected_output:
+  confirms_six_axes: true
+  explicit_yes: true
+  hand_off_direction: one-directional
+  next_action_skill: task-routing
+expected_trigger: intent-clarify
+input: ダッシュボード作りたいが何から始めるか迷ってる
+skill: intent-clarify
+snapshot_id: intent-clarify-1

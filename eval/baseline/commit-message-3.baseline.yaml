@@ -1,0 +1,13 @@
+case_id: 3
+expected_no_trigger:
+- finish-task
+expected_output:
+  body_present: true
+  breaking: false
+  scope: adr
+  subject: mark ADR-0005 as superseded by ADR-0009
+  type: docs
+expected_trigger: commit-message
+input: 'diff: ADR-0005 を ADR-0009 に supersede (docs-only)'
+skill: commit-message
+snapshot_id: commit-message-3

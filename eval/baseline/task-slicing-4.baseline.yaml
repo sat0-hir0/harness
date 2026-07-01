@@ -1,0 +1,14 @@
+case_id: 4
+expected_no_trigger:
+- commit-message
+expected_output:
+  foundation_wave_valid: conditional
+  required_verification_surface:
+  - dump-cli
+  - debug-log
+  - hidden-flag
+  - test
+expected_trigger: task-slicing
+input: 基盤作業 (エンドユーザーに見える UI なし) を wave として valid にしたい
+skill: task-slicing
+snapshot_id: task-slicing-4

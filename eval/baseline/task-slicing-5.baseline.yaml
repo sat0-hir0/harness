@@ -1,0 +1,10 @@
+case_id: 5
+expected_no_trigger:
+- commit-message
+expected_output:
+  action: stop
+  must_slice: true
+expected_trigger: task-slicing
+input: XL タスク (8+ ファイル) を 1 wave で計画したい
+skill: task-slicing
+snapshot_id: task-slicing-5

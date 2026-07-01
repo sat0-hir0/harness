@@ -1,0 +1,16 @@
+case_id: 5
+expected_no_trigger:
+- task-slicing
+- wave-status
+expected_output:
+  file_count_proxy: 1
+  qualitative_gate:
+    design_judgement_needed: true
+    harness_verifiable: partial
+    public_behaviour_changed: false
+  scope_estimate: XS
+  verdict: delegate-single
+expected_trigger: task-routing
+input: GPL containment policy の新 ADR
+skill: task-routing
+snapshot_id: task-routing-5

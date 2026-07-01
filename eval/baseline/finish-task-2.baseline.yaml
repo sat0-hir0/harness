@@ -1,0 +1,12 @@
+case_id: 2
+expected_no_trigger:
+- commit-message
+expected_output:
+  has_partial_status: true
+  partial_gap_described: true
+  partial_uat: not-yet-collected
+  unresolved_scope_deviations_format: from -> to
+expected_trigger: finish-task
+input: まとめて (5 spec 中 1 個が partial、 ギャップあり)
+skill: finish-task
+snapshot_id: finish-task-2
