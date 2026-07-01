@@ -22,30 +22,56 @@ backlog にダッシュボード追加 issue / スクリプト化検討 issue �
 
 ## 現状診断
 
-### 現状の数字 (= 2026-06 時点)
+### 現状の数字 (= 2026-07-01 実測、 cl100k_base 概算)
 
-- skill 6 個 / 1,948 行
-  - task-slicing 496 行
-  - finish-task 433 行
-  - task-routing 321 行
-  - commit-message 257 行
-  - intent-clarify 223 行
-  - wave-status 218 行
-- agent 6 個 / 315 行 (= 各 43-66 行、 均一)
-- docs 3 個 / 653 行
-- scripts 1 個 (= check-future-plans.py 322 行)
-- 上限制約: skill 数 10 個前後 (= description match 精度 / cognitive load)
+**skill 6 個 / 1,954 行 / 約 52,356 token** (= 全 skill 起動時に load される総量):
+
+| skill | 行数 | ~tokens | 業界上限 (= 2,000) 比 |
+|---|---:|---:|---|
+| task-slicing | 497 | 13,616 | **+581%** |
+| finish-task | 434 | 12,074 | **+504%** |
+| task-routing | 322 | 10,730 | **+436%** |
+| intent-clarify | 224 | 6,269 | +213% |
+| wave-status | 219 | 5,544 | +177% |
+| commit-message | 258 | 4,123 | +106% |
+
+**agent 6 個 / 321 行 / 約 10,606 token** (= 各 1,514-2,283 token、 業界 role-based budget 範囲内):
+
+| agent | 行数 | ~tokens |
+|---|---:|---:|
+| architect | 44 | 1,810 |
+| fullstack-engineer | 67 | 2,283 |
+| performance-engineer | 55 | 1,731 |
+| qa-expert | 45 | 1,514 |
+| security-auditor | 55 | 1,687 |
+| technical-writer | 55 | 1,581 |
+
+**docs 2 個 / 515 行 / 約 15,215 token**:
+- docs/harness-design.md: 383 行 / ~12,252 token
+- docs/script-placement.md: 132 行 / ~2,963 token
+
+**scripts 1 個 / 323 行 / 約 3,370 token** (= check-future-plans.py)
+
+**総計: 3,113 行 / 約 81,547 token**
+
+上限制約: skill 数 10 個前後 (= description match 精度 / cognitive load)
 
 ### 業界知見との照合
 
 | 観点 | 業界の現在地 | 私たちの現状 |
 |---|---|---|
-| skill 1 個の上限 | 2,000 token (= 約 1,500 語) | task-slicing 3,500 token = 75% 超過 |
-| role-based budget | research 2-4k / coding 4-8k token | 役割別 budget なし |
+| skill 1 個の上限 | 2,000 token (= 約 1,500 語) | **全 skill 超過、 最大 task-slicing 13,616 token = +581%** |
+| role-based budget | research 2-4k / coding 4-8k token | 役割別 budget なし (= ただし agent は各 1.5-2.3k で範囲内) |
 | multi-agent token 倍率 | 3 agent 並列 = 7x token | budget 制御なし |
 | subagent overhead | single-agent 比 200-500% | overhead 制御なし |
 | shared structured state | 2-4x 高速化、 業界 de facto standard | 半分実装 (= YAML chat 出力のみ、 永続なし) |
 | context rot 4 症状 | 指示無視 / generic 化 / 長 session 劣化 / 片方向累積 | 症状 4 該当 (= 半年累積、 削除なし) |
+
+### token 推定の注記
+
+- 数値は **cl100k_base 概算** (= ASCII chars/4 + 日本語 chars×1.5)、 tiktoken での正確計測ではない
+- 実 tiktoken 値は ±10% 程度の誤差の可能性
+- 前回本 doc 初版に記載した 「約 14,000 token」 は英語基準の粗い近似で誤り、 2026-07-01 に実測値で修正済
 
 ### 既存重複の根本原因
 
@@ -347,15 +373,20 @@ prior_outputs:
 
 ## 削減効果 (= 戦略 A 単独で見たもの)
 
-| 項目 | 削減見込み |
-|---|---|
-| Issue 投稿フロー 4 skill 重複 (= write-*.py に集約) | 約 245 行 |
-| Tier 1 検査 logic の script 化 (= wave-status / finish-task) | 約 30-50 行 |
-| completion-auditor 強制で wave-status の verbose 手続き説明削減 | 約 20-30 行 |
-| Worked example の docs/examples/ 外出し | 約 70 行 |
-| 戦略 A 全体合計 | **約 365 行 (= 1,948 から 19%)** |
+| 項目 | 削減 (行) | 削減 (~tokens) |
+|---|---:|---:|
+| Issue 投稿フロー 4 skill 重複 (= write-*.py に集約) | 約 245 行 | 約 6,500 token |
+| Tier 1 検査 logic の script 化 (= wave-status / finish-task) | 約 30-50 行 | 約 900 token |
+| completion-auditor 強制で wave-status の verbose 手続き説明削減 | 約 20-30 行 | 約 700 token |
+| Worked example の docs/examples/ 外出し | 約 70 行 | 約 1,900 token |
+| 戦略 A 全体合計 | **約 365 行** | **約 10,000 token** |
 
-ここに戦略 B-G が乗ると 40-50% 圧縮見込み。
+行数比: 1,954 → 1,589 行 = **19% 削減**
+token 比: 52,356 → 42,356 token = **19% 削減**
+
+**注記**: 日本語 skill では 「1 行 ≈ 27 token」 (= 平均)、 日本語重複部分 (= 投稿フロー等) は 1 行 40-50 token になるため、 重複削減の効果は token ベースでより大きい可能性あり (= 上記は保守的見立て)。
+
+ここに戦略 B-G が乗ると 40-50% 圧縮見込み (= 21,000-26,000 token 削減)。
 
 ---
 

@@ -436,18 +436,26 @@ common standard
 
 ## 全戦略統合時の削減効果
 
-| 戦略 | 削減 |
-|---|---|
-| A. Shared Structured State | 300 行 |
-| B. Role-Specific Budget | 50-80 行 |
-| C. Visibility Boundary | 70-100 行 |
-| D. Condensed Summary Protocol | 50-100 行 |
-| E. SkillOpt 導入 | 300-400 行 |
-| F. JIT injection (hook) | 200 行 |
-| G. JIT retrieval (tool/script) | 150 行 |
-| **合計** | **1,120-1,330 行 (= 1,948 から 57-68%)** |
+現状ベースライン (= 2026-07-01 実測): **skill 1,954 行 / 約 52,356 token**
 
-ただし重複削減があるため (= 例えば A と F が同じ部分を削る場合あり)、 実効削減は **40-50% (= 750-1,000 行)** が現実的見立て。
+| 戦略 | 削減 (行) | 削減 (~tokens) |
+|---|---:|---:|
+| A. Shared Structured State | 300 行 | 約 8,000 token |
+| B. Role-Specific Budget | 50-80 行 | 約 1,500-2,200 token |
+| C. Visibility Boundary | 70-100 行 | 約 2,000-2,700 token |
+| D. Condensed Summary Protocol | 50-100 行 | 約 1,500-2,700 token |
+| E. SkillOpt 導入 | 300-400 行 | 約 8,000-11,000 token |
+| F. JIT injection (hook) | 200 行 | 約 5,500 token |
+| G. JIT retrieval (tool/script) | 150 行 | 約 4,000 token |
+| **単純合計** | **1,120-1,330 行 (= 57-68%)** | **約 30,500-36,100 token (= 58-69%)** |
+
+ただし重複削減があるため (= 例えば A と F が同じ部分を削る場合あり)、 実効削減は **40-50%** が現実的見立て:
+- 実効行削減: **750-1,000 行**
+- 実効 token 削減: **21,000-26,000 token**
+- 統合後の目標: skill 1,000-1,200 行 / 26,000-31,000 token
+- ただし依然として業界上限 (= 6 skill × 2,000 = 12,000 token) は超過見込み
+
+**注記**: token 数値は cl100k_base 概算、 実 tiktoken で ±10% 誤差の可能性。
 
 ---
 
