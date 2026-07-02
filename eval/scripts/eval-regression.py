@@ -25,11 +25,6 @@ import yaml
 import eval_common as ec
 
 
-def current_expected(skill: str, case_id: int) -> dict:
-    case = ec.find_case(skill, case_id)
-    return case.get("expected_output", {})
-
-
 def diff_dicts(baseline: dict, current: dict, path: str = "") -> list[str]:
     """2 つの dict を再帰比較し、 差分を人間可読な文字列リストで返す。"""
     diffs = []
@@ -47,11 +42,25 @@ def diff_dicts(baseline: dict, current: dict, path: str = "") -> list[str]:
     return diffs
 
 
+def apply_override(skill: str, case: dict) -> str:
+    """意図した diff を baseline に再固定し、 更新した snapshot_id を返す。"""
+    entry = ec.baseline_entry(skill, case)
+    ec.write_yaml(ec.BASELINE_DIR / f"{entry['snapshot_id']}.baseline.yaml", entry)
+    return entry["snapshot_id"]
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="diff baseline vs current case output")
     p.add_argument("--skill", required=True, help="skill 名 または 'all'")
     p.add_argument("--judge", action="store_true", help="Ollama judge で semantic 等価も確認")
+    p.add_argument("--override", action="store_true", help="意図した diff を baseline に取り込む")
+    p.add_argument("--case", type=int, default=None,
+                   help="単一 case id に絞る (--skill は具体名必須)")
     args = p.parse_args()
+
+    if args.case is not None and args.skill == "all":
+        ec.eprint("ERROR: --case は --skill に具体名を指定した時のみ使える (all 不可)")
+        return 2
 
     use_judge = args.judge
     if use_judge and not ec.judge_available():
@@ -62,7 +71,9 @@ def main() -> int:
     targets = ec.skill_names() if args.skill == "all" else [args.skill]
 
     results = []
+    details = []
     missing_baseline = []
+    overridden = []
     for skill in targets:
         try:
             data = ec.load_cases(skill)
@@ -70,6 +81,8 @@ def main() -> int:
             ec.eprint("ERROR:", e)
             return 2
         for c in data["cases"]:
+            if args.case is not None and c["id"] != args.case:
+                continue
             sid = ec.snapshot_id(skill, c["id"])
             bpath = ec.BASELINE_DIR / f"{sid}.baseline.yaml"
             if not bpath.exists():
@@ -79,7 +92,20 @@ def main() -> int:
             current = c.get("expected_output", {})
             struct_diff = diff_dicts(baseline, current)
 
-            entry = {"snapshot_id": sid, "structural_diff": struct_diff or "none"}
+            if not struct_diff:
+                status = "pass"
+            elif args.override:
+                status = "acknowledged"
+                apply_override(skill, c)
+                overridden.append(sid)
+            else:
+                status = "fail"
+
+            entry = {
+                "snapshot_id": sid,
+                "status": status,
+                "structural_diff": struct_diff or "none",
+            }
             if struct_diff and use_judge:
                 verdict = ec.judge_compare(baseline, current)
                 if verdict["match"] is True:
@@ -89,22 +115,34 @@ def main() -> int:
                 else:
                     entry["judge"] = f"unavailable: {verdict['reason']}"
             results.append(entry)
+            if status != "pass":
+                details.append(entry)
 
-    regressions = [r for r in results if r["structural_diff"] != "none"]
+    n_pass = sum(1 for r in results if r["status"] == "pass")
+    n_fail = sum(1 for r in results if r["status"] == "fail")
+    n_ack = sum(1 for r in results if r["status"] == "acknowledged")
+    regressions = n_fail
 
     report = {
         "compared": len(results),
-        "regressions": len(regressions),
-        "missing_baseline": missing_baseline or "none",
         "mode": "structural+judge" if use_judge else "structural",
-        "details": regressions if regressions else "no drift from baseline",
+        "pass": n_pass,
+        "fail": n_fail,
+        "acknowledged": n_ack,
+        "regressions": regressions,
+        "missing_baseline": missing_baseline or "none",
+        "overridden": overridden or "none",
+        "details": details if details else "no drift from baseline",
     }
     print(yaml.safe_dump(report, allow_unicode=True, sort_keys=False, default_flow_style=False))
+
+    if args.case is not None and not results and not missing_baseline:
+        ec.eprint(f"WARNING: case id {args.case} matched nothing in skill '{args.skill}'")
 
     if missing_baseline:
         ec.eprint(f"NOTE: {len(missing_baseline)} case(s) have no baseline; "
                   "run eval-baseline.py --skill all first")
-    # 差分あり or baseline 欠落 → 非 0
+    # 差分あり (fail) or baseline 欠落 → 非 0。 acknowledged は exit 1 にしない。
     return 1 if (regressions or missing_baseline) else 0
 
 

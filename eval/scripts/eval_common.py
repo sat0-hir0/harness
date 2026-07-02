@@ -7,6 +7,7 @@ optional で、 到達不可なら呼び出し側が static mode に fallback �
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import sys
@@ -166,6 +167,19 @@ def _extract_json(text: str):
 # --- snapshot / baseline I/O ---------------------------------------------
 def snapshot_id(skill: str, case_id: int) -> str:
     return f"{skill}-{case_id}"
+
+
+def baseline_entry(skill: str, case: dict) -> dict:
+    """baseline に固定する 1 case 分の期待 output スナップショット。"""
+    return {
+        "snapshot_id": snapshot_id(skill, case["id"]),
+        "skill": skill,
+        "case_id": case["id"],
+        "input": case["input"],
+        "expected_trigger": case.get("expected_trigger"),
+        "expected_no_trigger": case.get("expected_no_trigger", []),
+        "expected_output": copy.deepcopy(case.get("expected_output", {})),
+    }
 
 
 def write_yaml(path: Path, data: dict) -> None:

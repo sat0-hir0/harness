@@ -14,25 +14,11 @@ git に commit して変更履歴を残す (= snapshots/ は派生物なので c
 from __future__ import annotations
 
 import argparse
-import copy
 import sys
 
 import yaml
 
 import eval_common as ec
-
-
-def baseline_entry(skill: str, case: dict) -> dict:
-    """baseline に固定する 1 case 分の期待 output スナップショット。"""
-    return {
-        "snapshot_id": ec.snapshot_id(skill, case["id"]),
-        "skill": skill,
-        "case_id": case["id"],
-        "input": case["input"],
-        "expected_trigger": case.get("expected_trigger"),
-        "expected_no_trigger": case.get("expected_no_trigger", []),
-        "expected_output": copy.deepcopy(case.get("expected_output", {})),
-    }
 
 
 def main() -> int:
@@ -50,7 +36,7 @@ def main() -> int:
             ec.eprint("ERROR:", e)
             return 2
         for c in data["cases"]:
-            entry = baseline_entry(skill, c)
+            entry = ec.baseline_entry(skill, c)
             ec.write_yaml(ec.BASELINE_DIR / f"{entry['snapshot_id']}.baseline.yaml", entry)
             written += 1
 
