@@ -1,9 +1,17 @@
-# eval — skill snapshot test
+# eval — skill fixture-sync lint
 
 6 skill (= `task-routing` / `intent-clarify` / `task-slicing` / `wave-status` /
 `finish-task` / `commit-message`) の「代表発話 → 期待 output」を YAML case として
-固定し、 skill / agent / hook を変更したときに **意図しない振る舞いのズレ** を安く
-検知するための snapshot test 基盤。
+固定し、 その case (= `cases/`) と合意済み期待値 (= `baseline/`) が **同期している
+か** を安く検知するための **fixture-sync lint** 基盤。
+
+> **これは挙動回帰 test ではない (= 最重要)**。 skill 本文は一度も実行されない
+> (= skill は Claude Code session 内でしか走らない)。 したがって SKILL.md を
+> 変更して **実際の振る舞いが変わったこと** は本基盤では検知できない。 検知できる
+> のは「手書きの `cases/` が commit 済みの `baseline/` からズレたか」だけ。 価値は、
+> case を編集した author に **意識的な re-baseline を強制** し 2 つの fixture を
+> 同期させ続ける点にある。 semantic な挙動照合が要るなら PR / nightly の judge
+> (= §judge、 業界比較は `docs/wip/harness-evaluation-2026-07-02.md` §5.3) を使う。
 
 各 skill の SKILL.md にある Worked example / Use when 代表発話 / Final Report
 スキーマから case を抽出しているため、 追加創作は最小限。 現状 6 skill × 5 case =
@@ -123,19 +131,22 @@ python eval-regression.py --skill all --judge
 
 `snapshots/` は `.gitignore` 済みの派生物。 `baseline/` と `cases/` を commit する。
 
-## pre-push regression gate (= 自動化)
+## pre-push fixture-sync gate (= 自動化)
 
-`eval-regression.py` を **pre-push hook** に接続し、 skill / agent を触った push を
-baseline drift で自動ブロックする。 hook は [lefthook](https://github.com/evilmartians/lefthook)
-経由 (= repo root の `lefthook.yml`) で `scripts/eval-gate.py` を呼ぶ。
+`eval-regression.py` を **pre-push hook** に接続し、 skill / agent を触った push で
+`cases/` と `baseline/` がズレたまま (= 未同期) なら自動ブロックする。 hook は
+[lefthook](https://github.com/evilmartians/lefthook) 経由 (= repo root の
+`lefthook.yml`) で `scripts/eval-gate.py` を呼ぶ。
 
-- `eval-gate.py` は push する range の変更ファイルを検査し、 eval 対象を判定する:
-  - `skills/<name>/SKILL.md` の変更 → その skill の regression のみ起動
+- `eval-gate.py` は push する range の変更ファイルを検査し、 lint 対象を判定する:
+  - `skills/<name>/SKILL.md` の変更 → その skill の fixture-sync 検査のみ起動
   - `agents/*.md` の変更 → 全 skill (`--skill all`) に fan-out
   - skill / agent の変更が無い push → skip (= exit 0)
-- 対象 skill の `eval-regression.py` が drift / baseline 欠落を検出 (= exit 非 0) すると
-  push をブロック (= exit 1)。 意図した変更なら `eval-baseline.py` で baseline を
-  更新してから push する。
+- 対象 skill の `eval-regression.py` が未同期 / baseline 欠落を検出 (= exit 非 0) すると
+  push をブロック (= exit 1)。 **反射的に re-baseline しないこと**: まず
+  `eval-regression.py --skill <name>` で diff を確認し、 新しい期待 output が意図
+  どおりだと確認してから `eval-baseline.py` で baseline を更新して push する
+  (= この gate は挙動を保証しない。 保証するのは 2 fixture の同期だけ)。
 
 ```bash
 lefthook install                              # .git/hooks/pre-push を生成
