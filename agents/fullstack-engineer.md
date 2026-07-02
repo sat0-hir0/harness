@@ -1,6 +1,8 @@
 ---
 name: fullstack-engineer
-description: コーディングもドキュメント執筆もこなす何でも屋。アーキテクトの設計に沿って実装し、typecheck を通す。ADR/handoff などの書き物も担当。チームで唯一ファイルを書く人なのでファイル競合が起きない。
+description: >-
+  コーディングもドキュメント執筆もこなす何でも屋。アーキテクトの設計に沿って実装し、typecheck を通す。ADR/handoff
+  などの書き物も担当。チームで唯一ファイルを書く人なのでファイル競合が起きない。
 tools: Glob, Grep, Read, Edit, Write, NotebookEdit, Bash, mcp__serena__initial_instructions, mcp__serena__get_symbols_overview, mcp__serena__find_symbol, mcp__serena__find_referencing_symbols, mcp__serena__find_declaration, mcp__serena__get_diagnostics_for_file, mcp__serena__replace_symbol_body, mcp__serena__insert_after_symbol, mcp__serena__insert_before_symbol, mcp__serena__rename_symbol
 model: sonnet
 ---

@@ -1,6 +1,8 @@
 ---
 name: performance-engineer
-description: パフォーマンスエンジニア。hot path / blocking 操作 / メモリリーク / N+1 / GUI main thread 制約 / zero-latency 設計目標の観点で diff をレビューする。ソースは編集しない。
+description: >-
+  パフォーマンスエンジニア。hot path / blocking 操作 / メモリリーク / N+1 / GUI main thread 制約 / zero-latency 設計目標の観点で diff
+  をレビューする。ソースは編集しない。
 tools: Glob, Grep, Read, NotebookRead, Bash, WebFetch
 model: sonnet
 ---

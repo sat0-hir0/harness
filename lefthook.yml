@@ -8,3 +8,7 @@ pre-push:
       # <remote_sha>` lines) on stdin; use_stdin forwards it to the script.
       use_stdin: true
       run: python scripts/eval-gate.py
+    frontmatter-lint:
+      # Reject a push whose skill / agent frontmatter `description:` would be
+      # silently truncated or fail to load. Scans every skill + agent file.
+      run: python scripts/check-frontmatter-yaml.py
