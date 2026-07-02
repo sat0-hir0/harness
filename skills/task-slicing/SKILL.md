@@ -168,7 +168,7 @@ Wave は **クリーンにマージされ (DoD 完了)** て初めて done と�
 - Promotion: after Wave 5 merges, promote LIMN_FEAT_FOO to experimental
 
 ## Hand-off
-- Wave 1: $propose-adr → $review-design → architect / fullstack-engineer / reviewer / $finish-task
+- Wave 1: $propose-adr → $review-design → architect / fullstack-engineer / qa-expert / security-auditor / $finish-task
 - Wave 2: ...
 ```
 
@@ -304,7 +304,7 @@ architect      (read-only 設計ブラッシュアップ、小規模 wave では
   ↓
 fullstack-engineer (実装)
   ↓
-reviewer + qa-verifier (独立した検証)
+qa-expert + security-auditor (独立した検証)
   ↓
 $finish-task   (ディスパッチャー + 監査ゲート)
   ↓
@@ -385,7 +385,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "<comment>"
 - ...
 
 ## Agent chain (= 各 wave で回す)
-- $propose-adr → $review-design → architect / fullstack-engineer → reviewer + qa-verifier → $finish-task
+- $propose-adr → $review-design → architect / fullstack-engineer → qa-expert + security-auditor → $finish-task
 - (= 新規 ADR のない wave は最初の 2 step をスキップ)
 
 ## Execution mode
@@ -409,7 +409,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "<comment>"
 本 skill (= personal global) には project 固有の skill 名 / agent 名 / verifier 名を直書きしない。 各 project の `.skillshare/skills/` (= または project の harness 配置) で:
 
 - どの project skill が本 skill の `$propose-adr` / `$start-task` / `$review-pr` / `$finish-task` スロットを埋めるか
-- どの agent (`architect` / `fullstack-engineer` / `reviewer` / `qa-verifier` 等) を呼ぶか
+- どの agent (`architect` / `fullstack-engineer` / `qa-expert` / `security-auditor` 等) を呼ぶか
 - どの verifier が `scripts/` または CI で発火するか
 
 を project 個別に定義する。 Lead は session 開始時に project の `AGENTS.md` / `.skillshare/HARNESS.md` 等を読んで mapping を把握する。

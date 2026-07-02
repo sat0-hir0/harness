@@ -1,6 +1,6 @@
 ---
 name: intent-clarify
-description: ALWAYS invoke when the user wants to discuss / ideate / stress-test / clarify intent BEFORE committing to an implementation. Triggers include Japanese phrasings like 「相談したい」「観点ほしい」「整理したい」「迷ってる」「どう思う?」「ideate」「stress-test」「方針決めたい」「どっちがいい?」, English phrasings like "I want to discuss X", "let's think about X", "give me perspectives on X", "I'm torn between A and B", "what do you think about X?", or any request where what / why / success / constraint is not yet decided. Confirms the user's real intent on 6 axes (= Outcome / User / Why now / Success / Constraint / Out of scope), optionally summoning the 5 subagents (= architect / fullstack-engineer / reviewer / qa-verifier / docs-curator) as parallel lenses. Hands the confirmed intent forward to $task-routing in one direction (no loop). SKIP for pure-info questions ("what is X?") and for already-specified implementation requests (use $task-routing directly).
+description: ALWAYS invoke when the user wants to discuss / ideate / stress-test / clarify intent BEFORE committing to an implementation. Triggers include Japanese phrasings like 「相談したい」「観点ほしい」「整理したい」「迷ってる」「どう思う?」「ideate」「stress-test」「方針決めたい」「どっちがいい?」, English phrasings like "I want to discuss X", "let's think about X", "give me perspectives on X", "I'm torn between A and B", "what do you think about X?", or any request where what / why / success / constraint is not yet decided. Confirms the user's real intent on 6 axes (= Outcome / User / Why now / Success / Constraint / Out of scope), optionally summoning the 6 subagents (= architect / fullstack-engineer / qa-expert / security-auditor / performance-engineer / technical-writer) as parallel lenses. Hands the confirmed intent forward to $task-routing in one direction (no loop). SKIP for pure-info questions ("what is X?") and for already-specified implementation requests (use $task-routing directly).
 ---
 
 # Intent clarify
@@ -31,9 +31,9 @@ description: ALWAYS invoke when the user wants to discuss / ideate / stress-test
 
 - **Decide**: この相談に必要な lens は何か?
   - **1 軸で足りる** (= ほぼ user の意図確認だけ) → Lead 単独で対話、 subagent spawn しない。
-  - **複数 lens 必要** (= 設計 / 失敗観点 / 実装制約 / 検証 / docs 化 等) → 既存 subagent (= architect / fullstack-engineer / reviewer / qa-verifier / docs-curator) から関係するものを並列召集。
+  - **複数 lens 必要** (= 設計 / 失敗観点 / 実装制約 / 検証 / docs 化 等) → 既存 subagent (= architect / fullstack-engineer / qa-expert / security-auditor / performance-engineer / technical-writer) から関係するものを並列召集。
 - **判定軸**: 「user が判断するのに、 どの専門家が何を言えば一番情報量が増えるか?」
-- 召集は **既存 agent の専門性そのまま**。 prompt に 「ideation mode」 等のモード切替は付けない (= 各 agent は自分の lens で語る、 architect なら設計目線、 reviewer なら 「失敗するならどこ?」、 fullstack-engineer なら 「実装制約として何が」、 qa-verifier なら 「何が動けば OK の証拠か」、 docs-curator なら 「残すべき決定は何か」)。
+- 召集は **既存 agent の専門性そのまま**。 prompt に 「ideation mode」 等のモード切替は付けない (= 各 agent は自分の lens で語る、 architect なら設計目線、 fullstack-engineer なら 「実装制約として何が」、 security-auditor なら 「どこから侵入できる? 攻撃者視点で穴はどこ?」、 performance-engineer なら 「どこが遅くなりうる?」、 qa-expert なら 「何が動けば OK の証拠か?」、 technical-writer なら 「残すべき決定は何か?」)。
 
 ### Step 1-2: 召集 (= 必要なら)
 
@@ -181,7 +181,7 @@ intent-clarify:
   request: <1 行サマリ>
   scope_judgement:
     lens_count: 1 | multiple
-    spawned_subagents: [architect | fullstack-engineer | reviewer | qa-verifier | docs-curator]
+    spawned_subagents: [architect | fullstack-engineer | qa-expert | security-auditor | performance-engineer | technical-writer]
   interview:
     rounds: <N>
     initial_confidence: <0-100>
@@ -207,7 +207,7 @@ intent-clarify:
 ## Related
 
 - `$task-routing` — 実装系 request の direct entry-point sibling skill。 本 skill が確定 intent を出したら、 Phase 4-2 で task-routing を **同 turn 内で one-directional に呼ぶ** (= ループしない、 task-routing 側に Phase 0 / short-circuit は存在しない)。
-- 既存 5 subagent (= architect / fullstack-engineer / reviewer / qa-verifier / docs-curator) — 複数 lens 必要なときに召集。 各 agent の prompt は不変更、 既存の専門性のまま 「観点 / assumption 出し」 を担う。
+- 既存 6 subagent (= architect / fullstack-engineer / qa-expert / security-auditor / performance-engineer / technical-writer) — 複数 lens 必要なときに召集。 各 agent の prompt は不変更、 既存の専門性のまま 「観点 / assumption 出し」 を担う。
 
 ## Attribution
 
@@ -217,7 +217,7 @@ intent-clarify:
 - **`idea-refine`** から抽出: Out of scope を必須 1 軸として 6 軸に組み込み (= Step 3-1) / 「Not Doing list の表面化」 概念
 
 統合のため追加:
-- 既存 5 subagent 召集パターン (= Phase 1)
+- 既存 6 subagent 召集パターン (= Phase 1)
 - task-routing one-directional hand-off 統合 (= Phase 4 / Final Report)
 - 日本語 user 用の検知パターン (= Step 2-3 / Step 3-2)
 - Exit criterion の operationalize 手順 (= 想定 reply 書き出し)

@@ -6,7 +6,7 @@ expected_output:
   lens_count: multiple
   next_action_skill: task-routing
   spawned_subagents_include:
-  - docs-curator
+  - technical-writer
 expected_trigger: intent-clarify
 input: docs ハンドオフ後の automation 流れを相談したい
 skill: intent-clarify

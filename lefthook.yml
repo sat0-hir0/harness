@@ -8,3 +8,7 @@ pre-push:
       # <remote_sha>` lines) on stdin; use_stdin forwards it to the script.
       use_stdin: true
       run: python scripts/eval-gate.py
+    agent-ref-lint:
+      # Fail the push when a skill/eval spawn context names an agent that has
+      # no agents/<name>.md, or reintroduces the bare `reviewer` drift.
+      run: python scripts/lint-agent-refs.py
