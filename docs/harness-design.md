@@ -198,15 +198,7 @@ stuck で `running` が残るのは意図的 (= 「動いている可能性」 �
 
 boundary skill (= 例: `$issue-execute`) は起動時に label を確認し、 `needs-human` があれば **副作用ゼロで早期停止** する (= branch 作成 / status 遷移 / session コメント / `running` 付与のいずれも実行しない)。
 
-## 10. Done の定義 (= board Done と git merged の一致)
-
-**Done の唯一の定義は、対応 PR が main に merge された状態である**。 board 上で Done column に入っていることと、 対応 branch が main に merge 済みであることは、 常に一致する。
-
-board で要求を Done column に移す操作は、 人間が merge 済みであることを確認した **後** に行う (= board の Done は git merged の後追いであり、 先行しない)。 boundary skill (= 例: `$prepare-uat`) が置くのは Awaiting UAT までで、 Done への遷移は merge を確認した人間が行う。
-
-unmerged なまま Done column に置かれた card は不整合である。 §9 の heartbeat が拾う stuck 判定 (= `running` + `long-running` の同居) とは別軸の異常であり、 「Done なのに branch が残っている」 状態は stale branch として扱う。 stale branch は、 該当 Issue の card が Done にあるにもかかわらず未 merge の branch が存在する状態を指す。
-
-## 11. 要求 ↔ branch ↔ session の紐付け
+## 10. 要求 ↔ branch ↔ session の紐付け
 
 GitHub プロジェクトの場合、 標準機能 (= Issue の Development sidebar、 `gh issue develop`) を使い、 命名規約を自作しない。
 
@@ -219,11 +211,11 @@ GitHub プロジェクトの場合、 標準機能 (= Issue の Development side
 
 GitHub プロジェクト以外 (= 単発 chat タスク) は branch + worktree のみ、 紐付け証跡は git commit message に含める。
 
-## 12. ワークフロー全体図
+## 11. ワークフロー全体図
 
 ASCII 図ではなく SVG 2 枚に統合した。 [`diagrams/backlog-lifecycle.svg`](diagrams/backlog-lifecycle.svg) (= 外側、 backlog プロジェクトを例) と [`diagrams/inner-skill-chain.svg`](diagrams/inner-skill-chain.svg) (= 内側 skill chain) を参照。 解説は [`diagrams/README.md`](diagrams/README.md) にある。
 
-## 13. 無人実行の完走規約 (= チケット起動時の停止境界)
+## 12. 無人実行の完走規約 (= チケット起動時の停止境界)
 
 backlog の a / c 経路 (= chat の `Issue #N やって` / heartbeat 自動 pick) は **人間不在の自動 session**。 boundary skill が `Execution mode: ultra-autonomous` を inject した状態で `$task-routing` → `$task-slicing` chain が走る。 ここでの正しい終端を固定する。
 
@@ -253,7 +245,7 @@ backlog の a / c 経路 (= chat の `Issue #N やって` / heartbeat 自動 pic
 
 > この規約が無いと、 Lead が 「大変そうだから計画だけ立てて Awaiting UAT に逃がす」 誤動作を起こす (= 過去に実発生)。 内側 skill chain と boundary skill の各層に対応する gate を実装済み。
 
-## 14. Completion Check 精査ルーチン (= 性悪説 Checker、 外側レイヤーの仕様)
+## 13. Completion Check 精査ルーチン (= 性悪説 Checker、 外側レイヤーの仕様)
 
 boundary skill (= 例: `$prepare-uat`) が着地させた要求を、 別の scheduled task (= 例: `completion-check-routine`、 cron `7-59/15 * * * *`、 heartbeat と 7-8 分裏) が **性悪説 (= 達成していないと疑う) を default** に精査する。 §2 の 「Out-of-process supervisor」 + 「Maker / Checker split」 を体現する **Checker 役**。 実装 session (= Maker) の自己申告を鵜呑みにせず、 別 process が証跡で裏取りする。
 
@@ -290,7 +282,7 @@ boundary skill (= 例: `$prepare-uat`) が着地させた要求を、 別の sch
 
 未達で Ready に差し戻しても **worktree は破棄しない**。 再 pick した session が repo state (= Resume 戦略 B、 §8) から現状を復元して続きを進められる。 差し戻しは 「やり直し」 ではなく 「未完を Ready に戻して継続」。
 
-## 15. session 透明性の規約 (= plan / wave 変動を外部記録に残す)
+## 14. session 透明性の規約 (= plan / wave 変動を外部記録に残す)
 
 session が途中で死んでも **外部記録 (= Issue コメント / commit message / wave-status file 等、 プロジェクトが保有する記録メディア) だけ追えば最新の Plan / Wave 構成 / 進捗地点が分かる** 状態にするための運用規約。 §2 「State is on disk, not in context」 の帰結。 透明性 (= 何を着手し、 どう Plan が変わり、 どこで引き継ぐか) を上げる。
 
@@ -375,7 +367,7 @@ surface 直後の chat に Lead が以下の 1 行 log を必ず出す (= 履歴
 
 具体的な投稿先 (= Issue コメント / commit message / Slack / その他) と投稿フォーマット (= 見出し / 絵文字 / 構造) は **プロジェクト固有**。 各プロジェクト repo の boundary skill とプロジェクト doc で定義する (= 例: backlog プロジェクトでは GitHub Issue コメントに `📋` / `🔄` / `🎯` 絵文字付きで投稿)。
 
-## 16. 採用しない選択
+## 15. 採用しない選択
 
 セミ自律であって全自律ではない。 以下は意図的に持たない。
 
@@ -388,3 +380,13 @@ surface 直後の chat に Lead が以下の 1 行 log を必ず出す (= 履歴
 - label を介した **状態遷移 trigger** (= 「ラベルを付けたら status が動く」 のような間接的な遷移トリガー。 責務が間接的になるため不採用)
 
 > **`running` ラベルとの関係 (= 上記の例外ではない)**: `running` ラベルは **状態遷移 trigger ではなく排他ロック memo** (= optimistic locking の claim 印、 §9)。 「`running` が付いたから status が動く」 のではなく、 status 遷移は常に明示的な script (= `issue-status.ps1` 等) が行い、 `running` は 「今 claim されているか」 を記録するだけ。 heartbeat はこのラベルを **読んで** race を判定するが、 ラベルが status を **動かす** ことはない。 同様に `long-running` も状態を記録するだけで遷移を起こさない。 したがって両ラベルは 「状態遷移 trigger 不採用」 の方針と矛盾しない。
+
+## 16. Done の定義 (= board Done と git merged の一致)
+
+> この節は末尾に追記する (= §10〜§15 の連番を動かさない)。 過去に §10 挿入で以降を繰り下げた際、 repo 内 1 件 + repo 外 7 件の `§N` deep link がずれた。 新規節は **常に末尾に足す** ことで既存参照を保全する。
+
+**Done の唯一の定義は、 対応 PR が main に merge された状態である**。 board 上で Done column に入っていることと、 対応 branch が main に merge 済みであることは、 常に一致する。
+
+**Done への遷移主体は built-in workflow (= 自動)**。 board で要求を Done column に移すのは、 PR が main に merge された時に built-in workflow (= GitHub Projects の PR merge → Done 自動遷移) が行う。 board の Done は git merged の **後追い** であり、 先行しない。 boundary skill (= 例: `$prepare-uat`) が置くのは Awaiting UAT までで、 **AI が merge 未確認のまま自己判定で Done に動かすことは禁止** (= §15 「AI 自己判定での PR merge」 不採用と同軸)。 人間が merge を実行 / 承認した結果として built-in workflow が Done に運ぶ、 という因果を守る。
+
+unmerged なまま Done column に置かれた card は不整合である。 §9 の heartbeat が拾う stuck 判定 (= `running` + `long-running` の同居) とは別軸の異常であり、 「Done なのに branch が残っている」 状態は stale branch として扱う。 stale branch は、 該当 Issue の card が Done にあるにもかかわらず未 merge の branch が存在する状態を指す。
