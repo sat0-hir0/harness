@@ -1,0 +1,12 @@
+case_id: 5
+expected_no_trigger:
+- task-routing
+expected_output:
+  explicit_yes: true
+  lens_count: 1
+  next_action_skill: task-routing
+  spawned_subagents: []
+expected_trigger: intent-clarify
+input: この API 設計、 このアプローチでいい?
+skill: intent-clarify
+snapshot_id: intent-clarify-5

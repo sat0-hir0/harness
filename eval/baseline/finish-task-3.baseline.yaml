@@ -1,0 +1,11 @@
+case_id: 3
+expected_no_trigger:
+- commit-message
+expected_output:
+  abandoned_reason_recorded: true
+  deferred_has_moved_to_url: true
+  has_abandoned_status: true
+expected_trigger: finish-task
+input: report 出して (3 spec 中 1 個が security 理由で abandoned)
+skill: finish-task
+snapshot_id: finish-task-3

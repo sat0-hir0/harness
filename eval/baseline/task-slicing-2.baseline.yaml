@@ -1,0 +1,12 @@
+case_id: 2
+expected_no_trigger:
+- commit-message
+expected_output:
+  all_waves_uat_able: true
+  produces_slice_plan: true
+  waves_have_blocked_by: true
+  waves_have_uat_script: true
+expected_trigger: task-slicing
+input: この feature を段階分けして
+skill: task-slicing
+snapshot_id: task-slicing-2

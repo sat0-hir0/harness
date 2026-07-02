@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+
+# eval snapshot は再生成可能な派生物 (= baseline/ は commit して基準を残す)
+eval/snapshots/

@@ -1,0 +1,78 @@
+# eval cases for the task-routing skill
+# 抽出元: skills/task-routing/SKILL.md の Worked examples (Example 1-5)
+# 各 case は「代表発話 (input) → 期待 verdict / qualitative_gate / scope_estimate」を保持する。
+# expected_output は task-routing の Final Report スキーマの主要 field を写す。
+skill: task-routing
+cases:
+  - id: 1
+    input: "README L42 の typo を直して"
+    expected_trigger: task-routing
+    expected_no_trigger: [task-slicing, wave-status]
+    source: "skills/task-routing/SKILL.md Example 1"
+    expected_output:
+      qualitative_gate:
+        public_behaviour_changed: no
+        harness_verifiable: yes
+        design_judgement_needed: no
+      file_count_proxy: 1
+      scope_estimate: XS
+      verdict: Lead-direct
+
+  - id: 2
+    input: "limn-core utils に Vec::tail() ヘルパー追加"
+    expected_trigger: task-routing
+    expected_no_trigger: [task-slicing, wave-status]
+    source: "skills/task-routing/SKILL.md Example 2"
+    # 開始前推定 1 ファイルなら Lead-direct、 test 編集見込みなら delegate-single。
+    # snapshot は「1 ファイル前提の Lead-direct」を基準値に固定する (= or は宣言禁止のため一方に確定)。
+    expected_output:
+      qualitative_gate:
+        public_behaviour_changed: no
+        harness_verifiable: yes
+        design_judgement_needed: no
+      file_count_proxy: 1
+      scope_estimate: XS
+      verdict: Lead-direct
+
+  - id: 3
+    input: "Alfred みたいなコマンドパレットを足して"
+    expected_trigger: task-routing
+    expected_no_trigger: []
+    source: "skills/task-routing/SKILL.md Example 3"
+    expected_output:
+      qualitative_gate:
+        public_behaviour_changed: yes
+        harness_verifiable: no
+        design_judgement_needed: yes
+      file_count_proxy: 5
+      scope_estimate: L
+      verdict: delegate-slice
+      hand_off: task-slicing
+
+  - id: 4
+    input: "main.rs の .expect() を ? に置き換え"
+    expected_trigger: task-routing
+    expected_no_trigger: [task-slicing, wave-status]
+    source: "skills/task-routing/SKILL.md Example 4"
+    expected_output:
+      qualitative_gate:
+        public_behaviour_changed: no
+        harness_verifiable: yes
+        design_judgement_needed: no
+      file_count_proxy: 1
+      scope_estimate: XS
+      verdict: Lead-direct
+
+  - id: 5
+    input: "GPL containment policy の新 ADR"
+    expected_trigger: task-routing
+    expected_no_trigger: [task-slicing, wave-status]
+    source: "skills/task-routing/SKILL.md Example 5"
+    expected_output:
+      qualitative_gate:
+        public_behaviour_changed: no
+        harness_verifiable: partial
+        design_judgement_needed: yes
+      file_count_proxy: 1
+      scope_estimate: XS
+      verdict: delegate-single

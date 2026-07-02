@@ -1,0 +1,12 @@
+case_id: 5
+expected_no_trigger:
+- task-slicing
+expected_output:
+  action: mark
+  checkbox_symbol: '[-]'
+  new_status: dropped
+  posts_issue_comment: conditional
+expected_trigger: wave-status
+input: $wave-status mark sidebar wave-6 dropped --reason "deferred"
+skill: wave-status
+snapshot_id: wave-status-5

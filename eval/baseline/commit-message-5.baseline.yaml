@@ -1,0 +1,10 @@
+case_id: 5
+expected_no_trigger:
+- finish-task
+expected_output:
+  action: stop
+  subject_over_limit: true
+expected_trigger: commit-message
+input: 'diff: 複数ファイルにまたがる refactor、 subject が 70 文字を超える'
+skill: commit-message
+snapshot_id: commit-message-5

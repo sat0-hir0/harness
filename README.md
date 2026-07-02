@@ -51,6 +51,19 @@ skillshare sync --all
 | [`docs/harness-design.md`](docs/harness-design.md) | 全体設計仕様 (= 工学原則 / 多層防御 / 構造 / workflow / session 透明性 / 採用判断、 15 節) |
 | [`docs/diagrams/`](docs/diagrams/README.md) | 俯瞰図 2 枚 + 解説 (= backlog 側 board lifecycle / 内側 skill chain) |
 
+## pre-push eval gate
+
+skill / agent を変更した push は、 [lefthook](https://github.com/evilmartians/lefthook)
+の pre-push hook (= `lefthook.yml` → `scripts/eval-gate.py`) が eval regression を走らせ、
+baseline からの drift を検出したら push をブロックする。 有効化は 1 回だけ:
+
+```bash
+lefthook install     # .git/hooks/pre-push を生成
+```
+
+`SKILL.md` の変更はその skill の、 `agents/*.md` の変更は全 skill の regression を
+起動する。 詳細は [`eval/README.md`](eval/README.md) を参照。
+
 ## related repos
 
 - `sat0-hir0/backlog` (= 個人の作りたいものリスト管理ハーネス、 本 harness の上に乗る外側レイヤー)

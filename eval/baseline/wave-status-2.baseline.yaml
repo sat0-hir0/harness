@@ -1,0 +1,13 @@
+case_id: 2
+expected_no_trigger:
+- task-slicing
+expected_output:
+  action: mark
+  appends_log: true
+  checkbox_symbol: '[x]'
+  new_status: done
+  reports_remaining: true
+expected_trigger: wave-status
+input: $wave-status mark sidebar wave-1 done
+skill: wave-status
+snapshot_id: wave-status-2

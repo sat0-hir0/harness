@@ -1,0 +1,13 @@
+case_id: 3
+expected_no_trigger:
+- task-slicing
+expected_output:
+  action: mark
+  checkbox_symbol: '[!]'
+  new_status: blocked
+  posts_issue_comment: conditional
+  reason_recorded: true
+expected_trigger: wave-status
+input: $wave-status mark sidebar wave-5 blocked --reason "Waiting for gpui IME API"
+skill: wave-status
+snapshot_id: wave-status-3

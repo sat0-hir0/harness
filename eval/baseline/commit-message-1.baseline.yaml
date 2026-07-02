@@ -1,0 +1,14 @@
+case_id: 1
+expected_no_trigger:
+- finish-task
+expected_output:
+  attribution: co-authored-by
+  body_present: true
+  breaking: true
+  scope: api
+  subject: replace synchronous read_file with async io::read
+  type: feat
+expected_trigger: commit-message
+input: 'diff: read_file を同期から非同期 async 化 (UI stall 原因を解消)'
+skill: commit-message
+snapshot_id: commit-message-1

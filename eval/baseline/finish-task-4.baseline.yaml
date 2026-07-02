@@ -1,0 +1,11 @@
+case_id: 4
+expected_no_trigger:
+- commit-message
+expected_output:
+  todos_not_NONE: true
+  unresolved_ignored_tests_listed: true
+  unresolved_todos_listed: true
+expected_trigger: finish-task
+input: 'PR 作る前にまとめて (TODO/FIXME 混入、 #[ignore] テストあり)'
+skill: finish-task
+snapshot_id: finish-task-4

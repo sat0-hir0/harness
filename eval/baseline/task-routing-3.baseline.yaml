@@ -1,0 +1,15 @@
+case_id: 3
+expected_no_trigger: []
+expected_output:
+  file_count_proxy: 5
+  hand_off: task-slicing
+  qualitative_gate:
+    design_judgement_needed: true
+    harness_verifiable: false
+    public_behaviour_changed: true
+  scope_estimate: L
+  verdict: delegate-slice
+expected_trigger: task-routing
+input: Alfred みたいなコマンドパレットを足して
+skill: task-routing
+snapshot_id: task-routing-3

@@ -1,0 +1,62 @@
+# eval cases for the commit-message skill
+# 抽出元: skills/commit-message/SKILL.md の Worked examples (Example 1-4) / 型判定表 / Boundary
+# diff 状況 → 期待 type / scope / breaking / subject を snapshot 化する。
+skill: commit-message
+cases:
+  - id: 1
+    input: "diff: read_file を同期から非同期 async 化 (UI stall 原因を解消)"
+    expected_trigger: commit-message
+    expected_no_trigger: [finish-task]
+    source: "skills/commit-message/SKILL.md Example 1"
+    expected_output:
+      type: feat
+      scope: api
+      breaking: yes
+      subject: "replace synchronous read_file with async io::read"
+      body_present: yes        # BREAKING CHANGE + Migration
+      attribution: co-authored-by
+
+  - id: 2
+    input: "diff: cargo-deny 0.16.3 -> 0.16.4 (license チェック regression 修正)"
+    expected_trigger: commit-message
+    expected_no_trigger: [finish-task]
+    source: "skills/commit-message/SKILL.md Example 2"
+    expected_output:
+      type: chore
+      scope: null
+      breaking: no
+      subject: "bump cargo-deny to 0.16.4"
+      body_present: yes        # why 段落のみ
+
+  - id: 3
+    input: "diff: ADR-0005 を ADR-0009 に supersede (docs-only)"
+    expected_trigger: commit-message
+    expected_no_trigger: [finish-task]
+    source: "skills/commit-message/SKILL.md Example 3"
+    expected_output:
+      type: docs
+      scope: adr
+      breaking: no
+      subject: "mark ADR-0005 as superseded by ADR-0009"
+      body_present: yes        # minimal
+
+  - id: 4
+    input: "diff: release-please PR title を v0.X 形式に pin (conventional-commits check 修正)"
+    expected_trigger: commit-message
+    expected_no_trigger: [finish-task]
+    source: "skills/commit-message/SKILL.md Example 4"
+    expected_output:
+      type: fix
+      scope: release
+      breaking: no
+      subject: "release-please PR title pinned to v0.X format"
+      references: ["#142"]     # Closes: #142
+
+  - id: 5
+    input: "diff: 複数ファイルにまたがる refactor、 subject が 70 文字を超える"
+    expected_trigger: commit-message
+    expected_no_trigger: [finish-task]
+    source: "skills/commit-message/SKILL.md Boundary (subject 70 char stop)"
+    expected_output:
+      action: stop             # 70 char 超なら commit 分割を提案
+      subject_over_limit: yes
