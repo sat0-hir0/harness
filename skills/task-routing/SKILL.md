@@ -68,9 +68,12 @@ Step 1-1 NO  AND  Step 1-2 YES  AND  Step 1-3 YES   → Lead-direct
 
 ### Step 2-1: スコープ見積もり
 
-- **XS** (= 1-2 ファイル、 単一の論理変更、 新 dep なし) → `delegate-single`
-- **S-M** (= 3-4 ファイル、 1 feature、 新 dep あるかも) → `delegate-single` (= architect + fullstack + reviewer + qa-verifier 並列の 1 ラウンド)
-- **L-XL** (= 5+ ファイル、 層をまたぐ、 複数の判断) → `delegate-slice`
+ファイル数の閾値は `$task-slicing` の Size テーブルが SoT (= 重複させない)。 本 skill は verdict mapping だけ持つ:
+
+- **XS / S / M** → `delegate-single` (= architect + fullstack + reviewer + qa-verifier 並列の 1 ラウンド)
+- **L / XL** → `delegate-slice`
+
+具体的なファイル数レンジ (= XS=1 / S=2 / M=3-4 / L=5-7 / XL=8+) は `$task-slicing` の 「Size テーブル」 を参照。
 
 ### Step 2-2: Verdict
 
@@ -208,7 +211,7 @@ verdict が決まったら、 **実装着手前** に project の git 規約を�
 ## Boundary
 
 - **Never** 多ファイル変更 / 公開挙動変更を `Lead-direct` にルーティングしない。 Lead の仕事は監督であって編集ではない。
-- **Never** XS-S タスクで `$task-slicing` を invoke しない。 単一 feature の slice は overhead だけ。
+- **Never** XS/S/M タスクで `$task-slicing` を invoke しない。 単一 feature の slice は overhead だけ。
 - **Never** L+ タスクで `delegate-single` を invoke しない。 1 ラウンド委譲は大規模 PR と context あふれを生む。
 - **Must** 3 質問のいずれかに自信を持って答えられないときは surface。 委譲の摩擦を避けるために黙って 「Lead-direct」 と仮定しない。
 - **Must** ファイル数指標は advisory のみと扱う。 定性 gate が判断。

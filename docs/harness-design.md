@@ -134,7 +134,7 @@ chat 直起動の単発タスクは 「外側レイヤーなし」 で内側 ski
 2. **harness で検証可能?**: 既存 verifier (= typecheck / cargo test / clippy / golden files) が客観的に確認できるか?
 3. **設計判断は不要?**: 原因確定済 AND 修正は既存パターンの素直な適用 (= grep-1-shot) か?
 
-3 つすべて NO / YES / YES → `Lead-direct`、 いずれかが該当しない → 委譲。 委譲は size (= XS-S / S-M / L-XL) で `delegate-single` か `delegate-slice` に分かれる。
+3 つすべて NO / YES / YES → `Lead-direct`、 いずれかが該当しない → 委譲。 委譲は size (= `$task-slicing` の Size テーブルを SoT とする XS/S/M/L/XL) で `delegate-single` か `delegate-slice` に分かれる。
 
 `$intent-clarify` の判定基準: 「意図整理 / 観点出し / stress-test / 方針決め」 に該当するか。 6 軸 intent を確定し、 必要なら 5 lens (= architect / fullstack-engineer / reviewer / qa-verifier / docs-curator) を並列起動して観点を集める。 確定 intent を `$task-routing` に渡す (= one-directional)。
 
