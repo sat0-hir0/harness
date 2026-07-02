@@ -116,10 +116,45 @@ def find_description(fm_lines: list[str]) -> tuple[int, str] | None:
     return None
 
 
-def simulate_plain_scalar_breakage(value: str) -> tuple[str, str] | None:
-    """Check whether a single-line plain scalar would break the YAML scan.
+def _check_leading_indicator(value: str) -> tuple[str, str] | None:
+    """Break checks that fire only at the very start of a plain scalar."""
+    # Leading `#`: the whole scalar is read as a comment, so the value loads as
+    # empty. A mid-scalar ` #` scan (which requires a preceding space) misses it.
+    if value[0] == "#":
+        snippet = value[:25]
+        return (
+            "description-truncated",
+            f"plain scalar starts with '#' (...{snippet}...); "
+            f"YAML reads the whole value as a comment, so 0 of {len(value)} "
+            "chars survive",
+        )
+    # Leading `-` / `?` followed by whitespace or end-of-value is a
+    # block-sequence / complex-mapping-key indicator, which raises a ScannerError
+    # in this position.
+    if value[0] in ("-", "?"):
+        second = value[1] if len(value) > 1 else ""
+        if second in (" ", "\t", ""):
+            snippet = value[:25]
+            return (
+                "description-scanner-error",
+                f"plain scalar starts with '{value[0]}{second}' "
+                f"(...{snippet}...) which YAML reads as a sequence / mapping "
+                "indicator (ScannerError)",
+            )
+    return None
+
+
+def simulate_plain_scalar_breakage(
+    value: str, is_first_line: bool = True
+) -> tuple[str, str] | None:
+    """Check whether a plain-scalar line would break the YAML scan.
 
     Returns (category, detail) if it would break, else None.
+
+    `is_first_line` gates the leading-indicator checks (a leading `#` / `-` /
+    `?` is only a node indicator at the very start of the scalar). On a folded
+    continuation line those characters are ordinary content, so only the
+    mid-scalar ` #` / `: ` scans apply.
 
     Failure modes, matching how a real YAML scanner reads a plain scalar:
       * A leading indicator char — when the value's FIRST char is one that YAML
@@ -144,30 +179,11 @@ def simulate_plain_scalar_breakage(value: str) -> tuple[str, str] | None:
     if not value:
         return None
 
-    # Leading `#`: the whole scalar is read as a comment, so the value loads as
-    # empty. A mid-scalar ` #` scan (which requires a preceding space) misses it.
-    if value[0] == "#":
-        snippet = value[:25]
-        return (
-            "description-truncated",
-            f"plain scalar starts with '#' (...{snippet}...); "
-            f"YAML reads the whole value as a comment, so 0 of {len(value)} "
-            "chars survive",
-        )
-
-    # Leading `-` / `?` followed by whitespace or end-of-value is a
-    # block-sequence / complex-mapping-key indicator, which raises a ScannerError
-    # in this position.
-    if value[0] in ("-", "?"):
-        second = value[1] if len(value) > 1 else ""
-        if second in (" ", "\t", ""):
-            snippet = value[:25]
-            return (
-                "description-scanner-error",
-                f"plain scalar starts with '{value[0]}{second}' "
-                f"(...{snippet}...) which YAML reads as a sequence / mapping "
-                "indicator (ScannerError)",
-            )
+    # Leading-indicator checks apply only at the true start of the scalar.
+    if is_first_line:
+        leading = _check_leading_indicator(value)
+        if leading is not None:
+            return leading
 
     # Leftmost ` #` (whitespace + hash) — comment start, truncates the scalar.
     hash_pos: int | None = None
@@ -229,6 +245,31 @@ def check_block_scalar_indent(
         # Hit a sibling key or end of block before any body line.
         break
     return "block scalar has no indented body (empty description)"
+
+
+def collect_plain_scalar_continuations(
+    fm_lines: list[str], desc_idx: int
+) -> list[str]:
+    """Gather the continuation lines of a multi-line plain scalar.
+
+    A plain scalar may fold across several lines: the `description:` line holds
+    the first chunk and each following indented, non-empty line adds more. YAML
+    scans ` #` / `: ` on those continuation lines exactly as on the first line,
+    so they must be inspected too — checking only the first line is a false
+    negative for any dangerous character that lands on a wrapped line.
+
+    Collection stops at the first sibling key (a line at the frontmatter's base
+    indent, i.e. no leading whitespace) or end of the block. Blank lines end a
+    plain scalar in YAML, so they stop collection as well.
+    """
+    out: list[str] = []
+    for line in fm_lines[desc_idx + 1 :]:
+        if line.strip() == "":
+            break
+        if line[:1] not in (" ", "\t"):
+            break
+        out.append(line.strip())
+    return out
 
 
 def check_quoted_symmetry(value: str) -> str | None:
@@ -306,11 +347,18 @@ def scan_file(path: str) -> list[Violation]:
             ]
         return []
 
-    # Plain one-line scalar: simulate breakage.
-    result = simulate_plain_scalar_breakage(value)
-    if result is not None:
-        category, detail = result
-        return [Violation(path, file_line, category, excerpt, detail)]
+    # Plain scalar (possibly multi-line): fold the first line together with any
+    # continuation lines and simulate breakage over each. A ` #` or `: ` on a
+    # wrapped line breaks the scan just as it would on the first line, so
+    # checking only `value` would be a false negative.
+    continuations = collect_plain_scalar_continuations(fm_lines, desc_idx)
+    for offset, chunk in enumerate([value, *continuations]):
+        result = simulate_plain_scalar_breakage(chunk, is_first_line=(offset == 0))
+        if result is not None:
+            category, detail = result
+            chunk_line = file_line + offset
+            chunk_excerpt = excerpt if offset == 0 else chunk[:200]
+            return [Violation(path, chunk_line, category, chunk_excerpt, detail)]
     return []
 
 
