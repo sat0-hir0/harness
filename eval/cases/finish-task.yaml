@@ -1,0 +1,57 @@
+# eval cases for the finish-task skill
+# 抽出元: skills/finish-task/SKILL.md の Use when / Final Report スキーマ / Worked example / Boundary
+# spec_coverage の status 分岐と unresolved grep の扱いを snapshot 化する。
+skill: finish-task
+cases:
+  - id: 1
+    input: "完了報告してほしい (4 spec 全部実装済み、 ユーザー向け変更あり)"
+    expected_trigger: finish-task
+    expected_no_trigger: [commit-message]
+    source: "skills/finish-task/SKILL.md Phase 1-3"
+    expected_output:
+      spec_coverage_all_status: achieved
+      spec_evidence_has_file_line: yes
+      uat_has_given_when_then: yes
+      evidence_type: test-output
+      unresolved_grepped: yes
+
+  - id: 2
+    input: "まとめて (5 spec 中 1 個が partial、 ギャップあり)"
+    expected_trigger: finish-task
+    expected_no_trigger: [commit-message]
+    source: "skills/finish-task/SKILL.md Phase 1 (partial) / Phase 4"
+    expected_output:
+      has_partial_status: yes
+      partial_gap_described: yes
+      partial_uat: not-yet-collected
+      unresolved_scope_deviations_format: "from -> to"
+
+  - id: 3
+    input: "report 出して (3 spec 中 1 個が security 理由で abandoned)"
+    expected_trigger: finish-task
+    expected_no_trigger: [commit-message]
+    source: "skills/finish-task/SKILL.md Phase 1 (abandoned) / Phase 4 (deferred)"
+    expected_output:
+      has_abandoned_status: yes
+      abandoned_reason_recorded: yes
+      deferred_has_moved_to_url: yes
+
+  - id: 4
+    input: "PR 作る前にまとめて (TODO/FIXME 混入、 #[ignore] テストあり)"
+    expected_trigger: finish-task
+    expected_no_trigger: [commit-message]
+    source: "skills/finish-task/SKILL.md Phase 4 (必須 grep)"
+    expected_output:
+      unresolved_todos_listed: yes         # file:line
+      unresolved_ignored_tests_listed: yes # test-name
+      todos_not_NONE: yes
+
+  - id: 5
+    input: "wrap this up (future-plans 混入 = 「Phase 2 で実装」「will be」)"
+    expected_trigger: finish-task
+    expected_no_trigger: [commit-message]
+    source: "skills/finish-task/SKILL.md Phase 4 Step 4-5 (future plans grep)"
+    expected_output:
+      future_plans_in_artifacts_detected: yes
+      future_plans_category: [milestone-name, future-tense, future-proofing]
+      future_plans_action: [removed, kept-as-present-fact, escalated]

@@ -1,6 +1,13 @@
 ---
 name: task-slicing
-description: ALWAYS invoke when the user asks to slice / split / decompose a large feature into stages or waves. Triggers include Japanese phrasings like 「wave に切って」「スライスして」「段階分けして」「feature を分割して」「どう段階化する?」「リリース計画を立てて」, English phrasings like "slice this", "break this into waves", "stage this rollout", "decompose this feature". Also auto-invoked when `$task-routing` returns `delegate-slice` verdict for L+ tasks (= 5+ files / cross-layer / multiple judgements). Outputs a slice plan with UAT-able vertical waves mapped to release / flag stages (= 実装はしない). 本 skill 内で参照される project skill 名 (= 例: $propose-adr / $start-task / $review-pr) は project 個別の慣例で、 違うプロジェクトでは hand-off 行をそのプロジェクトの chain に読み替える。 SKIP for XS-S tasks (= 1-4 files, single feature) and pure-info questions.
+description: >-
+  ALWAYS invoke when the user asks to slice / split / decompose a large feature into stages or waves.
+  Triggers include Japanese phrasings like 「wave に切って」「スライスして」「段階分けして」「feature
+  を分割して」「どう段階化する?」「リリース計画を立てて」, English phrasings like "slice this", "break this into waves", "stage
+  this rollout", "decompose this feature". Also auto-invoked when `$task-routing` returns `delegate-slice` verdict for L+ tasks (= 5+ files / cross-layer / multiple judgements). Outputs a
+  slice plan with UAT-able vertical waves mapped to release / flag stages (= 実装はしない). 本 skill 内で参照される
+  project skill 名 (= 例: $propose-adr / $start-task / $review-pr) は project 個別の慣例で、 違うプロジェクトでは hand-off
+  行をそのプロジェクトの chain に読み替える。 SKIP for XS/S/M tasks (= 1-4 files, single feature) and pure-info questions.
 ---
 
 # Task slicing
@@ -42,15 +49,17 @@ description: ALWAYS invoke when the user asks to slice / split / decompose a lar
   - **Verifier coverage** (= どの `$verify-*` が発火するか; 件数)
 - **Output**: slice plan に評価テーブルを書く。
 
-#### Size テーブル
+#### Size テーブル (= task-routing の scope 見積もりも本表を参照する SoT)
 
 | Size | Files | 説明 | 目安時間 |
 |---|---|---|---|
 | XS | 1 | 関数 1 つの調整 | <30 min |
-| S | 1-2 | 論理的変更 1 つ | <1 h |
-| M | 3-5 | フィーチャー 1 つ、スコープ明確 | 1-2 h |
-| L | 5-8 | 複数モジュールをまたぐ | 2 h+ |
+| S | 2 | 論理的変更 1 つ | <1 h |
+| M | 3-4 | フィーチャー 1 つ、スコープ明確 | 1-2 h |
+| L | 5-7 | 複数モジュールをまたぐ | 2 h+ |
 | XL | 8+ | **必ずスライスする** — 1 wave での計画は拒否 | N/A |
+
+verdict mapping (= `$task-routing` Step 2-1 が参照): XS / S / M → `delegate-single`、 L / XL → `delegate-slice`。
 
 ### Step 1-4: `$task-routing` で再確認 (= 取り違え防止)
 
@@ -168,7 +177,7 @@ Wave は **クリーンにマージされ (DoD 完了)** て初めて done と�
 - Promotion: after Wave 5 merges, promote LIMN_FEAT_FOO to experimental
 
 ## Hand-off
-- Wave 1: $propose-adr → $review-design → architect / fullstack-engineer / reviewer / $finish-task
+- Wave 1: $propose-adr → $review-design → architect / fullstack-engineer / qa-expert / security-auditor / $finish-task
 - Wave 2: ...
 ```
 
@@ -304,7 +313,7 @@ architect      (read-only 設計ブラッシュアップ、小規模 wave では
   ↓
 fullstack-engineer (実装)
   ↓
-reviewer + qa-verifier (独立した検証)
+qa-expert + security-auditor (独立した検証)
   ↓
 $finish-task   (ディスパッチャー + 監査ゲート)
   ↓
@@ -385,7 +394,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "<comment>"
 - ...
 
 ## Agent chain (= 各 wave で回す)
-- $propose-adr → $review-design → architect / fullstack-engineer → reviewer + qa-verifier → $finish-task
+- $propose-adr → $review-design → architect / fullstack-engineer → qa-expert + security-auditor → $finish-task
 - (= 新規 ADR のない wave は最初の 2 step をスキップ)
 
 ## Execution mode
@@ -409,7 +418,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "<comment>"
 本 skill (= personal global) には project 固有の skill 名 / agent 名 / verifier 名を直書きしない。 各 project の `.skillshare/skills/` (= または project の harness 配置) で:
 
 - どの project skill が本 skill の `$propose-adr` / `$start-task` / `$review-pr` / `$finish-task` スロットを埋めるか
-- どの agent (`architect` / `fullstack-engineer` / `reviewer` / `qa-verifier` 等) を呼ぶか
+- どの agent (`architect` / `fullstack-engineer` / `qa-expert` / `security-auditor` 等) を呼ぶか
 - どの verifier が `scripts/` または CI で発火するか
 
 を project 個別に定義する。 Lead は session 開始時に project の `AGENTS.md` / `.skillshare/HARNESS.md` 等を読んで mapping を把握する。

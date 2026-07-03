@@ -1,0 +1,12 @@
+case_id: 4
+expected_no_trigger:
+- task-slicing
+expected_output:
+  action: read
+  lists_all_waves: true
+  recommends_next_unblocked_todo: true
+  transcribes_adr_and_flag: true
+expected_trigger: wave-status
+input: 進捗どうなってる?
+skill: wave-status
+snapshot_id: wave-status-4

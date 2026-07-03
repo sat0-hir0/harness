@@ -236,7 +236,7 @@
     <text x="12" y="74" class="actor">認知 chunk + Kingman の式</text>
   </g>
 
-  <text x="40" y="722" class="col-head">階層 Issue 構造 (= §16): Epic 列 = 計画装置 / child = 実装単位 (= AI 着手対象)</text>
+  <text x="40" y="722" class="col-head">階層 Issue 構造 (= §18): Epic 列 = 計画装置 / child = 実装単位 (= AI 着手対象)</text>
 
   <g transform="translate(40, 734)">
     <rect x="0" y="0" width="290" height="70" fill="#21262d" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
@@ -261,7 +261,7 @@
 
   <g transform="translate(970, 734)">
     <rect x="0" y="0" width="290" height="70" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
-    <text x="12" y="20" class="stage-title" style="fill:#79c0ff">🏷 product:* label (= §17)</text>
+    <text x="12" y="20" class="stage-title" style="fill:#79c0ff">🏷 product:* label (= §19)</text>
     <text x="12" y="40" class="stage-sub">Epic dropdown → child へ継承</text>
     <text x="12" y="56" class="stage-sub">workflow が本文 ### Product を parse</text>
   </g>

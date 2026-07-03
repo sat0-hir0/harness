@@ -1,0 +1,61 @@
+# eval cases for the wave-status skill
+# 抽出元: skills/wave-status/SKILL.md の Use when / Phase 1-3 / Final Report
+# init / mark / read の各操作に対する期待 Final Report の主要 field を写す。
+skill: wave-status
+cases:
+  - id: 1
+    input: "$wave-status init sidebar"
+    expected_trigger: wave-status
+    expected_no_trigger: [task-slicing]
+    source: "skills/wave-status/SKILL.md Phase 1 / Final Report (init)"
+    expected_output:
+      action: init
+      creates_file: "~/.claude/state/slice-sidebar.md"
+      initial_wave_status: todo
+      reports_next_wave: yes
+
+  - id: 2
+    input: "$wave-status mark sidebar wave-1 done"
+    expected_trigger: wave-status
+    expected_no_trigger: [task-slicing]
+    source: "skills/wave-status/SKILL.md Phase 2 / Final Report (mark)"
+    expected_output:
+      action: mark
+      new_status: done
+      checkbox_symbol: "[x]"
+      appends_log: yes
+      reports_remaining: yes
+
+  - id: 3
+    input: '$wave-status mark sidebar wave-5 blocked --reason "Waiting for gpui IME API"'
+    expected_trigger: wave-status
+    expected_no_trigger: [task-slicing]
+    source: "skills/wave-status/SKILL.md Phase 2 (blocked)"
+    expected_output:
+      action: mark
+      new_status: blocked
+      checkbox_symbol: "[!]"
+      reason_recorded: yes
+      posts_issue_comment: conditional   # backlog harness 経由かつ直接 mark のときのみ
+
+  - id: 4
+    input: "進捗どうなってる?"
+    expected_trigger: wave-status
+    expected_no_trigger: [task-slicing]
+    source: "skills/wave-status/SKILL.md Phase 3 / Final Report (read)"
+    expected_output:
+      action: read
+      lists_all_waves: yes
+      transcribes_adr_and_flag: yes
+      recommends_next_unblocked_todo: yes
+
+  - id: 5
+    input: '$wave-status mark sidebar wave-6 dropped --reason "deferred"'
+    expected_trigger: wave-status
+    expected_no_trigger: [task-slicing]
+    source: "skills/wave-status/SKILL.md Phase 2 Step 2-3 (dropped)"
+    expected_output:
+      action: mark
+      new_status: dropped
+      checkbox_symbol: "[-]"
+      posts_issue_comment: conditional   # 直接 mark の構成変動なら投稿、 再スライス経由なら投稿しない

@@ -1,0 +1,16 @@
+case_id: 4
+expected_no_trigger:
+- task-slicing
+- wave-status
+expected_output:
+  file_count_proxy: 1
+  qualitative_gate:
+    design_judgement_needed: false
+    harness_verifiable: true
+    public_behaviour_changed: false
+  scope_estimate: XS
+  verdict: Lead-direct
+expected_trigger: task-routing
+input: main.rs の .expect() を ? に置き換え
+skill: task-routing
+snapshot_id: task-routing-4

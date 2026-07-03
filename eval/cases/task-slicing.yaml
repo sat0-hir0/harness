@@ -1,0 +1,57 @@
+# eval cases for the task-slicing skill
+# 抽出元: skills/task-slicing/SKILL.md の Use when / Worked example / Boundary
+# slice plan は markdown だが、 snapshot 照合できるよう「構造上の判定点」を field 化する。
+skill: task-slicing
+cases:
+  - id: 1
+    input: "ディレクトリツリーフィーチャーを wave に切ってください"
+    expected_trigger: task-slicing
+    expected_no_trigger: [commit-message]
+    source: "skills/task-slicing/SKILL.md Worked example (sidebar-tree)"
+    expected_output:
+      produces_slice_plan: yes
+      size: L
+      impact_scope: public-behaviour
+      wave_count: 7
+      all_waves_uat_able: yes
+      adr_count: 2
+      first_wave_uat_manner: debug-surface   # cargo run --example dump-walk
+
+  - id: 2
+    input: "この feature を段階分けして"
+    expected_trigger: task-slicing
+    expected_no_trigger: [commit-message]
+    source: "skills/task-slicing/SKILL.md Use when"
+    expected_output:
+      produces_slice_plan: yes
+      all_waves_uat_able: yes
+      waves_have_blocked_by: yes
+      waves_have_uat_script: yes    # given / when / then / pass
+
+  - id: 3
+    input: "リリース計画を立てて"
+    expected_trigger: task-slicing
+    expected_no_trigger: [commit-message]
+    source: "skills/task-slicing/SKILL.md Use when"
+    expected_output:
+      produces_slice_plan: yes
+      has_flag_mapping: yes
+      flag_promotion_is_product_decision: yes  # wave merge から自動導出しない
+
+  - id: 4
+    input: "基盤作業 (エンドユーザーに見える UI なし) を wave として valid にしたい"
+    expected_trigger: task-slicing
+    expected_no_trigger: [commit-message]
+    source: "skills/task-slicing/SKILL.md Phase 2 Step 2-4 (Foundation wave)"
+    expected_output:
+      foundation_wave_valid: conditional   # 検証 surface があれば OK
+      required_verification_surface: [dump-cli, debug-log, hidden-flag, test]
+
+  - id: 5
+    input: "XL タスク (8+ ファイル) を 1 wave で計画したい"
+    expected_trigger: task-slicing
+    expected_no_trigger: [commit-message]
+    source: "skills/task-slicing/SKILL.md Size テーブル / Boundary"
+    expected_output:
+      action: stop          # 1 wave での計画は拒否
+      must_slice: yes

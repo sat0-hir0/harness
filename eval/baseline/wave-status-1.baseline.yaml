@@ -1,0 +1,12 @@
+case_id: 1
+expected_no_trigger:
+- task-slicing
+expected_output:
+  action: init
+  creates_file: ~/.claude/state/slice-sidebar.md
+  initial_wave_status: todo
+  reports_next_wave: true
+expected_trigger: wave-status
+input: $wave-status init sidebar
+skill: wave-status
+snapshot_id: wave-status-1

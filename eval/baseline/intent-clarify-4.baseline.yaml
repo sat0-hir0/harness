@@ -1,0 +1,13 @@
+case_id: 4
+expected_no_trigger:
+- task-routing
+expected_output:
+  explicit_yes: true
+  lens_count: multiple
+  next_action_skill: task-routing
+  spawned_subagents_include:
+  - technical-writer
+expected_trigger: intent-clarify
+input: docs ハンドオフ後の automation 流れを相談したい
+skill: intent-clarify
+snapshot_id: intent-clarify-4

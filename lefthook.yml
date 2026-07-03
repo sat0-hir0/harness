@@ -1,0 +1,18 @@
+# pre-push gate: when the push range touches a skill's SKILL.md or agents/*.md,
+# run that skill's (or every skill's, on an agent change) eval regression and
+# stop the push on baseline drift. Range detection lives entirely in the script.
+pre-push:
+  commands:
+    eval-gate:
+      # git feeds the push plan (`<local_ref> <local_sha> <remote_ref>
+      # <remote_sha>` lines) on stdin; use_stdin forwards it to the script.
+      use_stdin: true
+      run: python scripts/eval-gate.py
+    frontmatter-lint:
+      # Reject a push whose skill / agent frontmatter `description:` would be
+      # silently truncated or fail to load. Scans every skill + agent file.
+      run: python scripts/check-frontmatter-yaml.py
+    agent-ref-lint:
+      # Fail the push when a skill/eval spawn context names an agent that has
+      # no agents/<name>.md, or reintroduces the bare `reviewer` drift.
+      run: python scripts/lint-agent-refs.py

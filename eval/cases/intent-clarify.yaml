@@ -1,0 +1,57 @@
+# eval cases for the intent-clarify skill
+# 抽出元: skills/intent-clarify/SKILL.md の Use when / Phase 3 / Final Report スキーマ
+# 6 軸 intent の確定と explicit_yes 判定、 hand-off 先を snapshot 化する。
+skill: intent-clarify
+cases:
+  - id: 1
+    input: "ダッシュボード作りたいが何から始めるか迷ってる"
+    expected_trigger: intent-clarify
+    expected_no_trigger: [task-routing]
+    source: "skills/intent-clarify/SKILL.md Use when / Phase 3"
+    expected_output:
+      confirms_six_axes: yes  # Outcome/User/Why now/Success/Constraint/Out of scope
+      explicit_yes: yes
+      next_action_skill: task-routing
+      hand_off_direction: one-directional
+
+  - id: 2
+    input: "speed アップしたいけどメトリクスが不明 (want vs should-want 混在)"
+    expected_trigger: intent-clarify
+    expected_no_trigger: [task-routing]
+    source: "skills/intent-clarify/SKILL.md Phase 2 (want vs should-want probe)"
+    expected_output:
+      want_vs_should_want_probe_used: yes
+      explicit_yes: refined-then-yes
+      next_action_skill: task-routing
+
+  - id: 3
+    input: "とりあえずいきましょうか (曖昧な相槌のみ)"
+    expected_trigger: intent-clarify
+    expected_no_trigger: [task-routing]
+    source: "skills/intent-clarify/SKILL.md Phase 3 (yes 確認)"
+    expected_output:
+      six_axes_written: yes
+      explicit_yes: not-confirmed   # yes を偽陽性で取らない、 user に返問
+      proceeds_to_handoff: no
+
+  - id: 4
+    input: "docs ハンドオフ後の automation 流れを相談したい"
+    expected_trigger: intent-clarify
+    expected_no_trigger: [task-routing]
+    source: "skills/intent-clarify/SKILL.md Phase 3-2 (loop) / scope judgement"
+    expected_output:
+      lens_count: multiple
+      spawned_subagents_include: [technical-writer]
+      explicit_yes: yes
+      next_action_skill: task-routing
+
+  - id: 5
+    input: "この API 設計、 このアプローチでいい?"
+    expected_trigger: intent-clarify
+    expected_no_trigger: [task-routing]
+    source: "skills/intent-clarify/SKILL.md Use when / scope judgement (single lens)"
+    expected_output:
+      lens_count: 1
+      spawned_subagents: []   # context 短い、 Lead 単独
+      explicit_yes: yes
+      next_action_skill: task-routing

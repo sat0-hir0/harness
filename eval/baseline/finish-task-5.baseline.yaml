@@ -1,0 +1,17 @@
+case_id: 5
+expected_no_trigger:
+- commit-message
+expected_output:
+  future_plans_action:
+  - removed
+  - kept-as-present-fact
+  - escalated
+  future_plans_category:
+  - milestone-name
+  - future-tense
+  - future-proofing
+  future_plans_in_artifacts_detected: true
+expected_trigger: finish-task
+input: wrap this up (future-plans 混入 = 「Phase 2 で実装」「will be」)
+skill: finish-task
+snapshot_id: finish-task-5

@@ -22,7 +22,7 @@ harness の構造を 2 枚の SVG で俯瞰する。 [`harness-design.md`](../ha
 - **verdict 3-way** (= forward / bounce / escalate): Completion Check から離脱
 - **label 設計** (= running / long-running / needs-human): 状態を記録、 状態遷移トリガーには使わない (= §9 仕様 / §15 方針)
 - **WIP 上限** = 3 件 (= **In Progress のみ**、 Completion Check / Awaiting UAT は対象外)
-- **階層 Issue 構造** (= §16): Epic ↔ child を GitHub Sub-issues で紐付け、 board view は **Parent issue Swimlane** で Epic ごとに横 row 表示。 child の `product:*` ラベルは親 Epic から継承 (= §17)
+- **階層 Issue 構造** (= §18): Epic ↔ child を GitHub Sub-issues で紐付け、 board view は **Parent issue Swimlane** で Epic ごとに横 row 表示。 child の `product:*` ラベルは親 Epic から継承 (= §19)
 
 ### 凡例
 
@@ -54,5 +54,5 @@ harness の構造を 2 枚の SVG で俯瞰する。 [`harness-design.md`](../ha
 
 ## 参考
 
-- [`../harness-design.md`](../harness-design.md): 全体設計仕様 (= 工学原則 / 多層防御 / 構造 / workflow / session 透明性 / 採用判断 / 階層 Issue / product label、 17 節)
+- [`../harness-design.md`](../harness-design.md): 全体設計仕様 (= 工学原則 / 多層防御 / 構造 / workflow / session 透明性 / 採用判断 / Done 定義 / 階層 Issue / product label、 §1〜§19 (= §17 欠番))
 - 図の更新時はソース (= SVG XML) を直接編集する。 ダーク背景前提の絶対色指定 (= CSS variable に依存しない)。

@@ -7,7 +7,7 @@
 ハーネスは 2 層に分かれる:
 
 - **内側 (= 本 repo のスコープ)**: 「1 つの要求 (= ユーザー発話 / Issue / バグ報告) を受け取り、 設計 → 実装 → 検証 → 完了報告まで回す」 共通の skill chain。 vendor (= Claude Code / Codex / Cursor / Gemini) を問わず同じ構造で動く。
-- **外側 (= プロジェクト固有のスコープ)**: 「要求をどこから拾い、 どこに着地させるか」 のライフサイクル。 例: backlog ハーネスでは GitHub Issue を起点に board の 7 列 (= child 6 status + Epic 列、 §16) で管理する。
+- **外側 (= プロジェクト固有のスコープ)**: 「要求をどこから拾い、 どこに着地させるか」 のライフサイクル。 例: backlog ハーネスでは GitHub Issue を起点に board の 7 列 (= child 6 status + Epic 列、 §18) で管理する。
 
 本 doc は **主に内側を記述** し、 外側との接続点 (= boundary) を §4.3 で明示する。 内側と外側の責務分離が doc 整理の核心。
 
@@ -73,7 +73,7 @@
 #### 共通ステージ (= verdict 後)
 
 - **Lead-direct**: Lead が直接実装。 sub-agent なし。 trivial な機械的編集 (= 1 file typo / mechanical rename) のみ。
-- **delegate-single**: `architect` (= 設計) → `fullstack-engineer` (= 実装) → `reviewer` + `qa-verifier` (= 並列検証) の 1 ラウンド。 Lead は監督、 編集しない。
+- **delegate-single**: `architect` (= 設計) → `fullstack-engineer` (= 実装) → `qa-expert` + `security-auditor` (= 並列検証) の 1 ラウンド。 Lead は監督、 編集しない。
 - **delegate-slice**: `$task-slicing` で wave 分解 → `$wave-status init` → 各 wave を delegate-single 相当で回す。
 
 各 wave 完了時に `$wave-status mark` で進捗永続化、 全 wave 完了時に `$finish-task` で完了報告統合 + コミットメッセージ生成 (= `$commit-message`)。
@@ -134,9 +134,9 @@ chat 直起動の単発タスクは 「外側レイヤーなし」 で内側 ski
 2. **harness で検証可能?**: 既存 verifier (= typecheck / cargo test / clippy / golden files) が客観的に確認できるか?
 3. **設計判断は不要?**: 原因確定済 AND 修正は既存パターンの素直な適用 (= grep-1-shot) か?
 
-3 つすべて NO / YES / YES → `Lead-direct`、 いずれかが該当しない → 委譲。 委譲は size (= XS-S / S-M / L-XL) で `delegate-single` か `delegate-slice` に分かれる。
+3 つすべて NO / YES / YES → `Lead-direct`、 いずれかが該当しない → 委譲。 委譲は size (= `$task-slicing` の Size テーブルを SoT とする XS/S/M/L/XL) で `delegate-single` か `delegate-slice` に分かれる。
 
-`$intent-clarify` の判定基準: 「意図整理 / 観点出し / stress-test / 方針決め」 に該当するか。 6 軸 intent を確定し、 必要なら 5 lens (= architect / fullstack-engineer / reviewer / qa-verifier / docs-curator) を並列起動して観点を集める。 確定 intent を `$task-routing` に渡す (= one-directional)。
+`$intent-clarify` の判定基準: 「意図整理 / 観点出し / stress-test / 方針決め」 に該当するか。 6 軸 intent を確定し、 必要なら 6 lens (= architect / fullstack-engineer / qa-expert / security-auditor / performance-engineer / technical-writer) を並列起動して観点を集める。 確定 intent を `$task-routing` に渡す (= one-directional)。
 
 ## 7. UAT パッケージの 9 要素 (= 外側レイヤーの仕様)
 
@@ -381,7 +381,19 @@ surface 直後の chat に Lead が以下の 1 行 log を必ず出す (= 履歴
 
 > **`running` ラベルとの関係 (= 上記の例外ではない)**: `running` ラベルは **状態遷移 trigger ではなく排他ロック memo** (= optimistic locking の claim 印、 §9)。 「`running` が付いたから status が動く」 のではなく、 status 遷移は常に明示的な script (= `issue-status.ps1` 等) が行い、 `running` は 「今 claim されているか」 を記録するだけ。 heartbeat はこのラベルを **読んで** race を判定するが、 ラベルが status を **動かす** ことはない。 同様に `long-running` も状態を記録するだけで遷移を起こさない。 したがって両ラベルは 「状態遷移 trigger 不採用」 の方針と矛盾しない。
 
-## 16. 階層 Issue 構造 (= Epic + sub-issue、 外側レイヤーの仕様)
+## 16. Done の定義 (= board Done と git merged の一致)
+
+> この節は末尾に追記する (= §10〜§15 の連番を動かさない)。 過去に §10 挿入で以降を繰り下げた際、 repo 内 1 件 + repo 外 7 件の `§N` deep link がずれた。 新規節は **常に末尾に足す** ことで既存参照を保全する。
+
+**Done の唯一の定義は、 対応 PR が main に merge された状態である**。 board 上で Done column に入っていることと、 対応 branch が main に merge 済みであることは、 常に一致する。
+
+**Done への遷移主体は built-in workflow (= 自動)**。 board で要求を Done column に移すのは、 PR が main に merge された時に built-in workflow (= GitHub Projects の PR merge → Done 自動遷移) が行う。 board の Done は git merged の **後追い** であり、 先行しない。 boundary skill (= 例: `$prepare-uat`) が置くのは Awaiting UAT までで、 **AI が merge 未確認のまま自己判定で Done に動かすことは禁止** (= §15 「AI 自己判定での PR merge」 不採用と同軸)。 人間が merge を実行 / 承認した結果として built-in workflow が Done に運ぶ、 という因果を守る。
+
+unmerged なまま Done column に置かれた card は不整合である。 §9 の heartbeat が拾う stuck 判定 (= `running` + `long-running` の同居) とは別軸の異常であり、 「Done なのに branch が残っている」 状態は stale branch として扱う。 stale branch は、 該当 Issue の card が Done にあるにもかかわらず未 merge の branch が存在する状態を指す。
+
+## 18. 階層 Issue 構造 (= Epic + sub-issue、 外側レイヤーの仕様)
+
+> §16 と同じく末尾追記 (= 既存節の連番を動かさない)。 §17 は並行追記中の別節に割当済のため欠番。
 
 backlog harness は GitHub Sub-issues (= parent ↔ child) を **計画 / 実装** のレイヤー分離に使う。 概念:
 
@@ -426,7 +438,7 @@ Epic 用 form の field 構成:
 
 | field | 必須 | 内容 |
 |---|---|---|
-| Product (dropdown) | yes | `product:limn` / `product:harness` 等 (= §17 product label 設計) |
+| Product (dropdown) | yes | `product:limn` / `product:harness` 等 (= §19 product label 設計) |
 | 目的 (textarea) | yes | この Epic で達成したいこと (= Why) |
 | スコープ (textarea) | yes | 含む範囲 / 含まない範囲 (= What / What not) |
 | 完了条件 (textarea) | no | Done と判断できる基準 |
@@ -435,7 +447,7 @@ Epic 用 form の field 構成:
 
 child Issue 本文の form (= `idea.yml`) と異なり、 Epic は `### Execution mode` / `### 人間対応の要否` セクションを持たない (= Epic は計画装置で `$issue-execute` が parse しないため不要)。
 
-## 17. product label 設計 (= 横断 product の識別、 外側レイヤーの仕様)
+## 19. product label 設計 (= 横断 product の識別、 外側レイヤーの仕様)
 
 backlog は複数 product を 1 つの board で扱う (= 現状 limn / harness)。 各 Issue が **どの product 由来か** を識別する仕組みとして `product:*` ラベルを使う。
 

@@ -85,7 +85,7 @@
 
   <g transform="translate(440, 244)">
     <rect x="0" y="0" width="380" height="90" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
-    <text x="12" y="20" class="stage-title" style="fill:#79c0ff">delegate-single (= S-M)</text>
+    <text x="12" y="20" class="stage-title" style="fill:#79c0ff">delegate-single (= XS/S/M)</text>
     <text x="12" y="38" class="stage-sub">1 wave 相当、 subagent 1-3 体</text>
     <text x="12" y="58" class="stage-sub">→ Phase 2 (= 実装) へ直行</text>
     <text x="12" y="78" class="write-doc">書: Phase 2 で複数</text>

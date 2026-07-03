@@ -1,0 +1,11 @@
+case_id: 3
+expected_no_trigger:
+- commit-message
+expected_output:
+  flag_promotion_is_product_decision: true
+  has_flag_mapping: true
+  produces_slice_plan: true
+expected_trigger: task-slicing
+input: リリース計画を立てて
+skill: task-slicing
+snapshot_id: task-slicing-3

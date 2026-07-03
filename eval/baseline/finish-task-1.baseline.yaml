@@ -1,0 +1,13 @@
+case_id: 1
+expected_no_trigger:
+- commit-message
+expected_output:
+  evidence_type: test-output
+  spec_coverage_all_status: achieved
+  spec_evidence_has_file_line: true
+  uat_has_given_when_then: true
+  unresolved_grepped: true
+expected_trigger: finish-task
+input: 完了報告してほしい (4 spec 全部実装済み、 ユーザー向け変更あり)
+skill: finish-task
+snapshot_id: finish-task-1

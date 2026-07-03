@@ -1,0 +1,11 @@
+case_id: 2
+expected_no_trigger:
+- task-routing
+expected_output:
+  explicit_yes: refined-then-yes
+  next_action_skill: task-routing
+  want_vs_should_want_probe_used: true
+expected_trigger: intent-clarify
+input: speed アップしたいけどメトリクスが不明 (want vs should-want 混在)
+skill: intent-clarify
+snapshot_id: intent-clarify-2

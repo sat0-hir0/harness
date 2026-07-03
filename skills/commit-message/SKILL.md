@@ -1,6 +1,8 @@
 ---
 name: commit-message
-description: ステージ済み diff から Conventional Commits 形式のコミットメッセージを生成する。`git commit` を打つ直前は MUST BE USED。メッセージを一貫・release-please 対応・pre-commit hook 互換に保つ。heredoc 形式で出力し、Lead が確認してコミットする。
+description: >-
+  ステージ済み diff から Conventional Commits 形式のコミットメッセージを生成する。`git commit` を打つ直前は MUST BE
+  USED。メッセージを一貫・release-please 対応・pre-commit hook 互換に保つ。heredoc 形式で出力し、Lead が確認してコミットする。
 ---
 
 # Commit message
