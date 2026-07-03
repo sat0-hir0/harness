@@ -3,3 +3,6 @@ __pycache__/
 
 # eval snapshot は再生成可能な派生物 (= baseline/ は commit して基準を残す)
 eval/snapshots/
+
+# plugin build 成果物 (= scripts/build-plugin.py で再生成可能)
+dist/
