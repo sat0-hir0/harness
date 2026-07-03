@@ -210,3 +210,38 @@ eval・観測性 judge は「#68 の答えは settled」、context 経済性 jud
 - reader 間矛盾 1 件が未解決のまま (= completion-check cron の登録状態、§4) (= 2026-07-03 追記: 確定済み、 §4 参照)
 - 外部比較の「業界水準」は Web 調査 (= 35 ソース) に基づく snapshot であり、一次検証はしていない
 - 本評価自体も AI 生成物。「確定」以外の項目 (= スコアの絶対値、業界比較の位置づけ) は判断材料であって証明ではない
+
+## 11. 再評価 (2026-07-03、同一手法 19 agents)
+
+Epic #80 の改善 wave (= 20 票、全 merge) 完了後に §1 と同一手法で再採点した。judge には「改善が実在するかを自力検証してから採点」を課し、prior score を anchor に証拠がある場合のみ変動させた。
+
+### 11.1 スコア delta
+
+| 次元 | 07-02 | 07-03 | 変動根拠 |
+|---|---|---|---|
+| context 経済性 | 3 | 3 | 計測 tooling 実在 (= #66 が 55,988 token を定量化) と CLAUDE.md 2 本の lean さは加点、常時 context の増加 (= description 1,388→1,684 字) が相殺 |
+| routing 信頼性 | 3 | **4** | 昨日の 3 defect (= agent 名 / YAML 切断 / assess fall-through) が **lint という締結付き**で解消。assess 出口は本再評価 session 自身が実証 |
+| eval・観測性 | 2 | **3** | L2 runner が実在し実行した (= committed baseline に実コスト $2.74 と honest fail 1 件 = 捏造困難)。正名化・CI・metrics も実在。他 5 skill 未カバー / judge 未較正で 4 には届かず |
+| 外側ループ自動化 | 3 | 3 | 設計は 4 相当 (= 差し戻しプロトコル実戦検証済み) だが、runtime が pre-wave の skill で稼働していた (= §11.2) ため据え置き |
+| process 重量 vs 価値 | 3 | **4** | ceremony 削減 (= XS 免除 / UAT 軽量形 / 空 Handoff 削除) と「全 gate が実 defect 対応 1:1 + stdlib 高速 + 締結済み」の両立 |
+| platform 適合 | 3 | 3 | MCP wildcard / per-vendor path / CI / plugin build は実在。deployed==SoT が backlog 層で不成立 (= §11.2) のため据え置き |
+
+### 11.2 再評価が検出した新規 defect (= 全て検出同日に修正済み)
+
+1. **merged ≠ deployed の再発 (1 層下)**: backlog 3 skill の deployed が pre-wave commit で凍結 (= 宙参照が runtime に残存、#93 tiering 未反映)。原因は backlog checkout が stale branch に居たこと。→ main resync + hash 検証で解消
+2. **wave 自身が持ち込んだ矛盾 3 箇所**: task-routing の免除 ceiling (= docs-only ≦ S) が Boundary と plan template で欠落、size 数値の再掲。→ 文言修正
+3. **description の実 render cap ~1,535 字**: 07-02 の「長さ制限説は棄却」は半分だけ正しかった (= YAML `#` と render cap の両方が実在)。1,684 字に育った task-routing が再切断。→ body 重複部を削り 1,459 字化
+4. **CI が direct main push を素通り**: → `push: branches: [main]` trigger 追加
+
+### 11.3 残課題 (= 検証 valid のみ)
+
+- **セキュリティ盲点の継続**: §8.1 (= write 権限 gh × untrusted issue body の cron) は改善 wave でもチケット化されず未対応
+- L2 の no-verdict-line 率 21% の root-cause (= L2 signal を信頼する前提条件)
+- DRY_RUN=false への切替の数値基準 (= dry-run verdict と人間判断の一致実績は蓄積済み)
+- §17 差し戻しプロトコルの prepare-uat 要素 9 への配線 / description 長 warn の lint 化 / 第 2 vendor 実走 / cost 会計
+
+### 11.4 教訓の追加
+
+- 「文書化された gate の機械的締結」はスコアに反映された (= routing / eval の +1 は全て lint・実行・CI 由来)
+- 大規模 wave は wave 自身が矛盾を持ち込む (= 3 箇所)。行動 eval と再評価が回収装置として機能した
+- 配布 drift は 1 層直しても下の層で再発する。**merged → 配布 source → deployed の全層 hash 検証**が必要
