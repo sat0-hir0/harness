@@ -20,7 +20,7 @@
 
 ## 統合のため追加した点
 
-- 既存 5 subagent 召集パターン (= architect / fullstack-engineer / reviewer / qa-verifier / docs-curator、 Phase 1)
+- 既存 6 subagent 召集パターン (= architect / fullstack-engineer / qa-expert / security-auditor / performance-engineer / technical-writer、 Phase 1)
 - task-routing への one-directional hand-off 統合 (= Phase 4 / Final Report、 ループしない設計)
 - 日本語 user 用の検知パターン (= Step 2-3 / Step 3-2、 「ちゃんとした」 「お任せします」 等)
 - Exit criterion の operationalize 手順 (= 想定 reply 書き出しによる vibe gate 回避)

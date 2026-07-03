@@ -73,7 +73,7 @@
 #### 共通ステージ (= verdict 後)
 
 - **Lead-direct**: Lead が直接実装。 sub-agent なし。 trivial な機械的編集 (= 1 file typo / mechanical rename) のみ。
-- **delegate-single**: `architect` (= 設計) → `fullstack-engineer` (= 実装) → `reviewer` + `qa-verifier` (= 並列検証) の 1 ラウンド。 Lead は監督、 編集しない。
+- **delegate-single**: `architect` (= 設計) → `fullstack-engineer` (= 実装) → `qa-expert` + `security-auditor` (= 並列検証) の 1 ラウンド。 Lead は監督、 編集しない。
 - **delegate-slice**: `$task-slicing` で wave 分解 → `$wave-status init` → 各 wave を delegate-single 相当で回す。
 
 各 wave 完了時に `$wave-status mark` で進捗永続化、 全 wave 完了時に `$finish-task` で完了報告統合 + コミットメッセージ生成 (= `$commit-message`)。
@@ -136,7 +136,7 @@ chat 直起動の単発タスクは 「外側レイヤーなし」 で内側 ski
 
 3 つすべて NO / YES / YES → `Lead-direct`、 いずれかが該当しない → 委譲。 委譲は size (= `$task-slicing` の Size テーブルを SoT とする XS/S/M/L/XL) で `delegate-single` か `delegate-slice` に分かれる。
 
-`$intent-clarify` の判定基準: 「意図整理 / 観点出し / stress-test / 方針決め」 に該当するか。 6 軸 intent を確定し、 必要なら 5 lens (= architect / fullstack-engineer / reviewer / qa-verifier / docs-curator) を並列起動して観点を集める。 確定 intent を `$task-routing` に渡す (= one-directional)。
+`$intent-clarify` の判定基準: 「意図整理 / 観点出し / stress-test / 方針決め」 に該当するか。 6 軸 intent を確定し、 必要なら 6 lens (= architect / fullstack-engineer / qa-expert / security-auditor / performance-engineer / technical-writer) を並列起動して観点を集める。 確定 intent を `$task-routing` に渡す (= one-directional)。
 
 ## 7. UAT パッケージの 9 要素 (= 外側レイヤーの仕様)
 

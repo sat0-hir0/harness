@@ -1,6 +1,21 @@
 ---
 name: task-routing
-description: Routes any non-trivial development request to a verdict (Lead-direct / delegate-single / delegate-slice) that the Lead MUST follow. ALWAYS invoke at the very first turn, BEFORE any Edit / Write / Bash / sub-agent call, whenever the user asks to add, fix, change, refactor, implement, set up, wire up, integrate, respond to, debug, or investigate code / docs / config / build / CI / project state. Triggers include Japanese phrasings like 「実装して」「直して」「追加して」「入れて」「対応して」「セットアップ」「調べて」「足して」「動かして」「リファクタ」, English phrasings like "add X", "fix X", "set up X", "implement X", "wire X", "handle X", and any mention of file paths, function names, or build / test commands. SKIP for pure-info questions ("what is X?", "explain Y") with zero file writes / shell, AND for consult / ideation requests (use $intent-clarify instead). Skipping this is the #1 source of misrouted work (= Lead-direct on tasks that should have been delegated, missed ADR triggers, public-behaviour changes slipped past review). **OUTPUT CONTRACT**: every verdict MUST be accompanied by a Y-trace 1-liner (= 採用根拠 + 棄却した代替 + 受け入れる trade-off) so the user can audit the judgement without re-deriving it. Format: `判定: <verdict> | ∵ <why this>, 棄却: <what & why not>, accepting: <trade-off>`. Skip Y-trace only for self-evident Lead-direct (= 1 file typo, mechanical rename) where context already proves the verdict; default is add.
+description: >-
+  Routes any non-trivial development request to a verdict (Lead-direct / delegate-single /
+  delegate-slice) that the Lead MUST follow. ALWAYS invoke at the very first turn, BEFORE any Edit /
+  Write / Bash / sub-agent call, whenever the user asks to add, fix, change, refactor, implement, set
+  up, wire up, integrate, respond to, debug, or investigate code / docs / config / build / CI /
+  project state. Triggers include Japanese phrasings like
+  「実装して」「直して」「追加して」「入れて」「対応して」「セットアップ」「調べて」「足して」「動かして」「リファクタ」, English phrasings like "add X", "fix
+  X", "set up X", "implement X", "wire X", "handle X", and any mention of file paths, function names,
+  or build / test commands. SKIP for pure-info questions ("what is X?", "explain Y") with zero file
+  writes / shell, AND for consult / ideation requests (use $intent-clarify instead). Skipping this is
+  the #1 source of misrouted work (= Lead-direct on tasks that should have been delegated, missed ADR
+  triggers, public-behaviour changes slipped past review). **OUTPUT CONTRACT**: every verdict MUST be
+  accompanied by a Y-trace 1-liner (= 採用根拠 + 棄却した代替 + 受け入れる trade-off) so the user can audit the
+  judgement without re-deriving it. Format: `判定: <verdict> | ∵ <why this>, 棄却: <what & why not>,
+  accepting: <trade-off>`. Skip Y-trace only for self-evident Lead-direct (= 1 file typo, mechanical
+  rename) where context already proves the verdict; default is add.
 ---
 
 # Task routing
@@ -16,7 +31,7 @@ description: Routes any non-trivial development request to a verdict (Lead-direc
 
 理由は 2 つ:
 
-1. **AI agent の精度**: 役割分離で hallucination を減らせる。 Lead は監督、 専門 sub-agent (= architect / fullstack-engineer / reviewer / qa-verifier) が各自のスコープを担当。 各 agent は必要なものだけ読む。
+1. **AI agent の精度**: 役割分離で hallucination を減らせる。 Lead は監督、 専門 sub-agent (= architect / fullstack-engineer / qa-expert / security-auditor) が各自のスコープを担当。 各 agent は必要なものだけ読む。
 2. **context window**: routing rule を CLAUDE.md ではなくこの skill に置くと、 Lead の context が軽く保たれる。 invoke されたときだけ load される。
 
 default は **委譲**。 Lead-direct は trivial な機械的編集だけの例外。
@@ -70,7 +85,7 @@ Step 1-1 NO  AND  Step 1-2 YES  AND  Step 1-3 YES   → Lead-direct
 
 ファイル数の閾値は `$task-slicing` の Size テーブルが SoT (= 重複させない)。 本 skill は verdict mapping だけ持つ:
 
-- **XS / S / M** → `delegate-single` (= architect + fullstack + reviewer + qa-verifier 並列の 1 ラウンド)
+- **XS / S / M** → `delegate-single` (= architect + fullstack-engineer + qa-expert + security-auditor 並列の 1 ラウンド)
 - **L / XL** → `delegate-slice`
 
 具体的なファイル数レンジ (= XS=1 / S=2 / M=3-4 / L=5-7 / XL=8+) は `$task-slicing` の 「Size テーブル」 を参照。
@@ -78,7 +93,7 @@ Step 1-1 NO  AND  Step 1-2 YES  AND  Step 1-3 YES   → Lead-direct
 ### Step 2-2: Verdict
 
 - `Lead-direct` → Lead が直接実装。 sub-agent なし。
-- `delegate-single` → プロジェクト標準チェーンを 1 回 (= architect → fullstack-engineer → reviewer + qa-verifier の並列レビュー)。
+- `delegate-single` → プロジェクト標準チェーンを 1 回 (= architect → fullstack-engineer → qa-expert + security-auditor の並列レビュー)。
 - `delegate-slice` → `$task-slicing` で wave 分割、 `$wave-status init`、 各 wave を標準チェーンで。
 
 ## Phase 3: Hand-off
@@ -90,19 +105,19 @@ Step 1-1 NO  AND  Step 1-2 YES  AND  Step 1-3 YES   → Lead-direct
 - **根拠の確度を開示**: `∵` の後ろに **「memory / grep / file 確認 / 推測」 のどれか** を含める (= user が「調べた」 と「推測した」 を区別できる)。
 - 例:
   - `判定: Lead-direct | ∵ file 確認: 1 ファイル + 公開挙動なし + harness OK, 棄却: delegate-single = 単一 typo に overhead, accepting: 自己 review 範囲 = typo なので低リスク`
-  - `判定: delegate-single (S) | ∵ grep: 3 ファイル想定 + 1 feature + 新 dep なし, 棄却: Lead-direct = 公開挙動 (CLI arg) 変更で reviewer 必須, accepting: 1 ラウンド spawn コスト ≒ 5 min`
+  - `判定: delegate-single (S) | ∵ grep: 3 ファイル想定 + 1 feature + 新 dep なし, 棄却: Lead-direct = 公開挙動 (CLI arg) 変更で review 必須, accepting: 1 ラウンド spawn コスト ≒ 5 min`
   - `判定: delegate-slice (L) | ∵ 推測: 5+ files + 層またぎ + 設計判断 3 件, 棄却: delegate-single = 1 PR 巨大化リスク, accepting: wave 分割で実装期間 1 → 3 セッションに伸びる`
 - **escape valve**: 自明な Lead-direct (= README typo / 1 行 rename) は Y-trace 省略可。 迷ったら付ける。
 
 ### Step 3-2: Hand-off 実行
 
 - `Lead-direct`: 実装に進む。
-- `delegate-single`: `architect` (= read-only 調査 + 設計) → `fullstack-engineer` (= 実装) → `reviewer` (= 敵対的レビュー) + `qa-verifier` (= typecheck/test) を並列 spawn。 Lead は監督、 **ファイル編集しない**。
-  - **必須**: 実装後に `reviewer` + `qa-verifier` を **必ず並列 spawn** する。 Lead が直接実装してレビュー / 検証を兼ねる代替は **不可** (= 自己レビューは敵対的視点を欠く、 spawn 省略は単独責任で品質落ちる主因)。
+- `delegate-single`: `architect` (= read-only 調査 + 設計) → `fullstack-engineer` (= 実装) → `qa-expert` (= 敵対的レビュー 兼 typecheck/test) + `security-auditor` (= 敵対的レビュー) を並列 spawn。 Lead は監督、 **ファイル編集しない**。
+  - **必須**: 実装後に `qa-expert` + `security-auditor` を **必ず並列 spawn** する。 Lead が直接実装してレビュー / 検証を兼ねる代替は **不可** (= 自己レビューは敵対的視点を欠く、 spawn 省略は単独責任で品質落ちる主因)。
   - 「軽微だから」 「すぐ済むから」 で省略しない。 spawn 自体を skip するのは Lead-direct verdict のときだけ。
 - `delegate-slice`: `$task-slicing` invoke。 slice plan 完了後 user 承認、 各 wave を `delegate-single` 相当で回す。
   - **無人起動時 (= `$issue-execute` 経由 / 人間不在の自動 session) は user 承認を待たず自動 proceed**。 承認者が不在なので計画提示で止まらない。 計画を `$prepare-uat` に逃がして実装を放棄するのは **禁止** (= 詳細は `$task-slicing` の 「無人起動時のデフォルト」 セクション)。
-  - **必須**: 各 wave で **reviewer + qa-verifier を必ず spawn** する。 wave スキップ (= 「この wave は小さいから reviewer 省略」) は **不可**。
+  - **必須**: 各 wave で **qa-expert + security-auditor を必ず spawn** する。 wave スキップ (= 「この wave は小さいから review 省略」) は **不可**。
   - **ADR が要る wave**: `$adr-proposal` 等で **Proposed として起票だけ** する。 **Accepted 昇格は別 turn で user 確認後** に行う (= 同一 turn で起票から昇格まで通すと user の design judgement 機会を奪う)。
 
 #### Issue コメント投稿 (= 「📋 着手 Plan」 軽量版)
@@ -161,7 +176,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "📋 着手 Plan (軽量�
 - <1-2 行で着手内容>
 
 ## Agent chain
-- architect → fullstack-engineer → reviewer + qa-verifier → \$finish-task
+- architect → fullstack-engineer → qa-expert + security-auditor → \$finish-task
 - (= Lead-direct の場合は 「Lead 直接実装 (= sub-agent なし)」)
 
 ## ADR
@@ -169,7 +184,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "📋 着手 Plan (軽量�
 "
 ```
 
-**Agent Teams (= 複数 teammate 並列) を起動する局面**: 上記 `delegate-single` の reviewer + qa-verifier は通常の subagent 並列で済む。 Agent Teams は **3+ 次元** (= security / perf / docs / test 等) で同時 depth が必要なときに限る。 環境制約: WezTerm は split-pane 非対応 → **in-process mode 一択** (= 1 terminal で agent panel UI)。
+**Agent Teams (= 複数 teammate 並列) を起動する局面**: 上記 `delegate-single` の qa-expert + security-auditor は通常の subagent 並列で済む。 Agent Teams は **3+ 次元** (= security / perf / docs / test 等) で同時 depth が必要なときに限る。 環境制約: WezTerm は split-pane 非対応 → **in-process mode 一択** (= 1 terminal で agent panel UI)。
 
 ### Step 3-3: Autonomous mode
 
@@ -215,7 +230,7 @@ verdict が決まったら、 **実装着手前** に project の git 規約を�
 - **Never** L+ タスクで `delegate-single` を invoke しない。 1 ラウンド委譲は大規模 PR と context あふれを生む。
 - **Must** 3 質問のいずれかに自信を持って答えられないときは surface。 委譲の摩擦を避けるために黙って 「Lead-direct」 と仮定しない。
 - **Must** ファイル数指標は advisory のみと扱う。 定性 gate が判断。
-- **Never** `delegate-single` / `delegate-slice` の各 wave で `reviewer` / `qa-verifier` の spawn を省略しない。 **autonomous mode でも省略不可**。 「軽微」 「時間ない」 「自分で見たから OK」 はすべて却下理由 (= 自己レビュー bias で品質落ちる主因)。 spawn 自体を skip して良いのは Lead-direct verdict のときだけ。
+- **Never** `delegate-single` / `delegate-slice` の各 wave で `qa-expert` / `security-auditor` の spawn を省略しない。 **autonomous mode でも省略不可**。 「軽微」 「時間ない」 「自分で見たから OK」 はすべて却下理由 (= 自己レビュー bias で品質落ちる主因)。 spawn 自体を skip して良いのは Lead-direct verdict のときだけ。
 - **Never** `delegate-slice` で ADR を同一 turn で Proposed から Accepted に昇格させない。 起票 = この turn、 昇格 = 別 turn (= user 確認後)。
 - **Never** project 規約が branch を要求するときに main 直 commit しない。 multi-file / 新 feature / 公開挙動変更なら **必ず feature branch**。
 - **Never** 技術 doc / ADR / コード comment / panic msg / `#[ignore]` reason / config comment / skill 例 / 設計案 / report / commit msg / PR body に **マイルストーン / Phase / Wave 名 (= M0-M5, Phase 2, Wave 9-D, Sprint N)** / **将来時制 (= "will be", "later wave", "deferred to ...", "is cut when X")** / **拡張予定 / future-proofing 表現 (= "for future X", "extensible to ...", "may add Y later", "(and any future palette extension)")** を書かない。 詳細は本セクション直下の 「将来予定を書かない」 を参照。 reviewer 系 agent (= qa-expert / performance-engineer / security-auditor / architect / technical-writer) は本ルール違反を **指摘対象** として扱う。
@@ -223,7 +238,7 @@ verdict が決まったら、 **実装着手前** に project の git 規約を�
 - **Must** verdict 1 つにつき Y-trace 1 行を添える。 escape valve は自明な Lead-direct (= 1 ファイル typo / mechanical rename) のみ。 「結論だけ来て判断に困る」 という user feedback への構造的対応 (= reasoning trace 長さが perceived difficulty proxy になる業界知見、 Y-Statement format = 5 要素 1 文の MADR 派生)。
 - **Never** Y-trace を MUST にしてすべての判断に重い trade-off 表を要求しない。 1 行 ≒ 30-50 token、 出力肥大を防ぐため形式を 1 行に縛る。
 
-## 将来予定を書かない (= 全 agent 遵守 + reviewer 指摘対象)
+## 将来予定を書かない (= 全 agent 遵守 + reviewer 系 agent 指摘対象)
 
 ### ルール
 
@@ -306,7 +321,7 @@ task-routing:
 - ファイル数: 5+
 - Scope: L
 - **Verdict**: `delegate-slice` → `$task-slicing`
-- **Y-trace**: `判定: delegate-slice (L) | ∵ 推測: 新 modal + keybinding + fuzzy lib 選定 = 5+ files / 設計判断 3 件, 棄却: delegate-single = 1 PR 巨大化 + reviewer の review 範囲過大, accepting: wave 分割で fuzzy lib 選定が wave 1 で blocking question 化`
+- **Y-trace**: `判定: delegate-slice (L) | ∵ 推測: 新 modal + keybinding + fuzzy lib 選定 = 5+ files / 設計判断 3 件, 棄却: delegate-single = 1 PR 巨大化 + review 範囲過大, accepting: wave 分割で fuzzy lib 選定が wave 1 で blocking question 化`
 
 ### Example 4: 「main.rs の .expect() を ? に置き換え」
 - 公開挙動: NO
@@ -321,4 +336,4 @@ task-routing:
 - 設計判断: YES (= ADR 自体が決定の記録)
 - ファイル数: 1-2
 - **Verdict**: `delegate-single` (= プロジェクトの `$adr-proposal` skill が独自のレビューチェーンを持つ)
-- **Y-trace**: `判定: delegate-single (XS) | ∵ file 確認: ADR 1 ファイル + 公開挙動なし + 設計判断 = ADR 本体, 棄却: Lead-direct = 設計判断が ADR の核なので reviewer 必須, accepting: ADR 起票 = Proposed のみ、 Accepted 昇格は別 turn`
+- **Y-trace**: `判定: delegate-single (XS) | ∵ file 確認: ADR 1 ファイル + 公開挙動なし + 設計判断 = ADR 本体, 棄却: Lead-direct = 設計判断が ADR の核なので review 必須, accepting: ADR 起票 = Proposed のみ、 Accepted 昇格は別 turn`

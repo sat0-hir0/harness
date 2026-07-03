@@ -1,6 +1,10 @@
 ---
 name: wave-status
-description: ALWAYS invoke to track / check / update wave progress on sliced features. Triggers include Japanese phrasings like 「進捗どうなってる」「wave のステータス」「今どこにいる?」「どこまで終わった?」「次の wave 何だっけ?」, English phrasings like "what's the status", "where are we", "which wave is next", "progress on X". Also auto-invoked after `$task-slicing` produces a plan (= `init` action) and after each wave completes (= `mark` action). フィーチャーごとに 1 つの markdown ファイルでチェックボックスの状態を管理する $task-slicing の姉妹 skill。 計画と状態を分離することで、 セッションリセット後も進捗が残る。 SKIP for tasks without an active wave plan.
+description: >-
+  ALWAYS invoke to track / check / update wave progress on sliced features. Triggers include Japanese
+  phrasings like 「進捗どうなってる」「wave のステータス」「今どこにいる?」「どこまで終わった?」「次の wave 何だっけ?」, English phrasings like "what's the status", "where are we", "which wave is next", "progress on X". Also auto-invoked after `$task-slicing` produces a plan (= `init` action) and after each wave completes (= `mark` action).
+  フィーチャーごとに 1 つの markdown ファイルでチェックボックスの状態を管理する $task-slicing の姉妹 skill。 計画と状態を分離することで、
+  セッションリセット後も進捗が残る。 SKIP for tasks without an active wave plan.
 ---
 
 # Wave status
