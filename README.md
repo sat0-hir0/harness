@@ -64,6 +64,11 @@ lefthook install     # .git/hooks/pre-push を生成
 `SKILL.md` の変更はその skill の、 `agents/*.md` の変更は全 skill の regression を
 起動する。 詳細は [`eval/README.md`](eval/README.md) を参照。
 
+同等の検査は PR でも走る (= `.github/workflows/eval-gate.yml`、 ubuntu-latest)。
+lint 3 種 + fixture-sync (`eval-regression.py --skill all`) の決定的 check のみで、
+LLM / API key は使わない。 CI と local gate の対応表は
+[`eval/README.md`](eval/README.md) の「PR CI」節を参照。
+
 ## related repos
 
 - `sat0-hir0/backlog` (= 個人の作りたいものリスト管理ハーネス、 本 harness の上に乗る外側レイヤー)
