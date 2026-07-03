@@ -41,7 +41,7 @@ cases:
     source: "skills/intent-clarify/SKILL.md Phase 3-2 (loop) / scope judgement"
     expected_output:
       lens_count: multiple
-      spawned_subagents_include: [docs-curator]
+      spawned_subagents_include: [technical-writer]
       explicit_yes: yes
       next_action_skill: task-routing
 

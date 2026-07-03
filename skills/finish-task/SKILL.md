@@ -143,7 +143,7 @@ grep の対象は 5 種類: (1) TODO / FIXME (Step 4-1)、 (2) `#[ignore]` / xfa
 
 ### Step 4-5: 将来予定 / マイルストーン / 拡張予定 の混入を grep する
 
-`$task-routing` Boundary の 「将来予定を書かない」 ルール (= 全 agent 遵守 + reviewer 指摘対象) に基づく出口側の最終チェック。 sibling skill (= `$task-routing`) の規定を本 skill で再掲はしないので、 ルール本文と背景はそちらを参照。 ここでは grep と表面化だけを行う。
+`$task-routing` Boundary の 「将来予定を書かない」 ルール (= 全 agent 遵守 + reviewer 系 agent 指摘対象) に基づく出口側の最終チェック。 sibling skill (= `$task-routing`) の規定を本 skill で再掲はしないので、 ルール本文と背景はそちらを参照。 ここでは grep と表面化だけを行う。
 
 - **実行 (= 推奨経路: script)**: vendor 配下の `scripts/check-future-plans.py` を実行する (= 検出パターン + 除外ロジック + 自己参照除外を実装、 標準ライブラリのみ依存、 OS / vendor 非依存、 untracked file も default scan に含む)。 各 AI CLI vendor の skill ディレクトリと同じ階層に `scripts/` が配置される (= `~/.claude/scripts/`、 `~/.codex/scripts/`、 `~/.cursor/scripts/`、 `~/.gemini/scripts/`、 `~/.agents/scripts/`)。 配置は skillshare extras 経由で harness repo の `scripts/` を各 vendor に sync する (= 配置原則の詳細は [`docs/script-placement.md`](../../docs/script-placement.md) 参照)。
 
