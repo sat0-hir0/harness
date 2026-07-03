@@ -54,5 +54,5 @@ harness の構造を 2 枚の SVG で俯瞰する。 [`harness-design.md`](../ha
 
 ## 参考
 
-- [`../harness-design.md`](../harness-design.md): 全体設計仕様 (= 工学原則 / 多層防御 / 構造 / workflow / session 透明性 / 採用判断 / Done 定義 / 階層 Issue / product label、 §1〜§19 (= §17 欠番))
+- [`../harness-design.md`](../harness-design.md): 全体設計仕様 (= 工学原則 / 多層防御 / 構造 / workflow / session 透明性 / 採用判断 / Done 定義 / 階層 Issue / product label、 §1〜§19)
 - 図の更新時はソース (= SVG XML) を直接編集する。 ダーク背景前提の絶対色指定 (= CSS variable に依存しない)。
