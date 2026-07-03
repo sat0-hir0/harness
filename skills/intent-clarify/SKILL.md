@@ -8,8 +8,11 @@ description: >-
   decided. Confirms the user's real intent on 6 axes (= Outcome / User / Why now / Success /
   Constraint / Out of scope), optionally summoning the 6 subagents (= architect / fullstack-engineer /
   qa-expert / security-auditor / performance-engineer / technical-writer) as parallel lenses. Hands the confirmed intent forward to
-  $task-routing in one direction (no loop). SKIP for pure-info questions ("what is X?") and for
-  already-specified implementation requests (use $task-routing directly).
+  $task-routing in one direction (no loop). SKIP for pure-info questions ("what is X?"), for
+  already-specified implementation requests (use $task-routing directly), AND for read-only assess /
+  audit / review requests ("評価して", "assess this", "audit X") — the goal is already fixed (produce a
+  report), not intent to clarify; route directly to qa-expert + architect (+ security-auditor when
+  security is in scope).
 ---
 
 # Intent clarify
@@ -19,6 +22,8 @@ description: >-
 **user が相談 / 観点出し / 意図整理を求めているとき、 直接呼ぶ direct entry-point**。 description の trigger 列挙 (= 「相談したい」 「迷ってる」 「どう思う?」 等) に当てはまれば本 skill が起動する。
 
 明確な実装タスクには使わない (= `$task-routing` の領分)。 純粋情報質問 (= 「X って何?」) にも使わない。
+
+評価 / 監査 / レビュー型要求 (= 「評価して」 「監査して」 「assess this」) も対象外。 user は既に目的 (= 評価すること) を確定させており、 意図整理を求めていない。 `qa-expert` + `architect` を直接 spawn する (= `$task-routing` 側と同じ判断)。
 
 ## Why this skill exists
 

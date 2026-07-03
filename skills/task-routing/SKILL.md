@@ -9,7 +9,11 @@ description: >-
   「実装して」「直して」「追加して」「入れて」「対応して」「セットアップ」「調べて」「足して」「動かして」「リファクタ」, English phrasings like "add X", "fix
   X", "set up X", "implement X", "wire X", "handle X", and any mention of file paths, function names,
   or build / test commands. SKIP for pure-info questions ("what is X?", "explain Y") with zero file
-  writes / shell, AND for consult / ideation requests (use $intent-clarify instead). Skipping this is
+  writes / shell, for consult / ideation requests (use $intent-clarify instead), AND for read-only
+  assess / audit / review requests ("評価して", "監査して", "レビューして", "assess this", "audit X",
+  "review X for Y") — these produce a report with zero file writes and route directly to qa-expert +
+  architect (+ security-auditor when security is in scope), not through this skill's verdict gate.
+  Skipping this is
   the #1 source of misrouted work (= Lead-direct on tasks that should have been delegated, missed ADR
   triggers, public-behaviour changes slipped past review). **OUTPUT CONTRACT**: every verdict MUST be
   accompanied by a Y-trace 1-liner (= 採用根拠 + 棄却した代替 + 受け入れる trade-off) so the user can audit the
@@ -26,6 +30,8 @@ description: >-
 - 具体的には: コード / docs / 外部状態に触れるすべて。
 
 純粋に情報を求められているだけ (= ファイル書き込みなし、 1 回の read だけ) ならスキップ。
+
+評価 / 監査 / レビュー型要求 (= 「評価して」 「監査して」 「レビューして」 「assess this」 「audit X」) もスキップ対象。 これらは複数ファイルを構造的に読みレポートを成果物とするが、 code / docs / state を書き換えない (= read-only)。 Lead が `qa-expert` を基本に据えて直接 spawn し (= 敵対的検証が assess の成果物のため)、 `architect` を設計 / 影響範囲の観点で併走させる (= security 観点を含むなら `security-auditor` も並列追加)。 read-only 調査 → レポートとして進める。 verdict gate (= Lead-direct / delegate-single / delegate-slice) は 「何かを実装 / 変更する」 前提の分岐であり、 assess 型には適用しない。
 
 ## Why this skill exists
 
@@ -237,6 +243,7 @@ verdict が決まったら、 **実装着手前** に project の git 規約を�
 - **Never** project 規約が branch を要求するときに main 直 commit しない。 multi-file / 新 feature / 公開挙動変更なら **必ず feature branch**。
 - **Never** 技術 doc / ADR / コード comment / panic msg / `#[ignore]` reason / config comment / skill 例 / 設計案 / report / commit msg / PR body に **マイルストーン / Phase / Wave 名 (= M0-M5, Phase 2, Wave 9-D, Sprint N)** / **将来時制 (= "will be", "later wave", "deferred to ...", "is cut when X")** / **拡張予定 / future-proofing 表現 (= "for future X", "extensible to ...", "may add Y later", "(and any future palette extension)")** を書かない。 詳細は本セクション直下の 「将来予定を書かない」 を参照。 reviewer 系 agent (= qa-expert / performance-engineer / security-auditor / architect / technical-writer) は本ルール違反を **指摘対象** として扱う。
 - **Stop** ユーザー要求が純粋に情報目的 (= 書きなし、 exec なし) なら止める。 この skill は code/docs/state 変更タスク用。
+- **Stop** 評価 / 監査 / レビュー型要求 (= read-only、 成果物はレポート) はこの skill の対象外。 `qa-expert` を基本に据えて spawn し `architect` を併走させる (= security 観点を含むなら security-auditor も追加)。
 - **Must** verdict 1 つにつき Y-trace 1 行を添える。 escape valve は自明な Lead-direct (= 1 ファイル typo / mechanical rename) のみ。 「結論だけ来て判断に困る」 という user feedback への構造的対応 (= reasoning trace 長さが perceived difficulty proxy になる業界知見、 Y-Statement format = 5 要素 1 文の MADR 派生)。
 - **Never** Y-trace を MUST にしてすべての判断に重い trade-off 表を要求しない。 1 行 ≒ 30-50 token、 出力肥大を防ぐため形式を 1 行に縛る。
 
