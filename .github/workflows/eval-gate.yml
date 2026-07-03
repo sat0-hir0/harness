@@ -36,9 +36,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Twin of lefthook's frontmatter-lint + agent-ref-lint, plus the
-  # check-future-plans doc-discipline check that locally runs via finish-task.
-  # All three are stdlib-only (no pip install).
+  # Twin of lefthook's frontmatter-lint (parse safety + length budget for
+  # skill / agent descriptions: reject unsafe plain scalars and descriptions
+  # at the ~1,535-char live render cap, warn over 1,400) + agent-ref-lint,
+  # plus the check-future-plans doc-discipline check that locally runs via
+  # finish-task. All three are stdlib-only (no pip install).
   lints:
     runs-on: ubuntu-latest
     steps:
