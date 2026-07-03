@@ -35,7 +35,7 @@
 | 層 | 役割 | 起源 | 実装状態 |
 |---|---|---|---|
 | 1. 役割分離 | 設計 / 実装 / 検証 / UAT 準備を別 agent | Sense-Plan-Act、 Behavior Tree | implemented (= `agents/*.md` 6 種、 frontmatter `tools:` 制限は platform が強制) |
-| 2. Back pressure | lint / typecheck / test green まで前進不可 | CI | implemented (= `scripts/*.py` 4 gate + `lefthook.yml` pre-push) |
+| 2. Back pressure | lint / typecheck / test green まで前進不可 | CI | prompt-text-only (= typecheck / test を green まで強制する gate は無く、 qa-expert / `$finish-task` の本文指示のみ。 `lefthook.yml` pre-push の 3 lint (= fixture-sync / frontmatter / agent-ref) は実在するが repo 自身の doc 整合 lint であり、 「役割」 欄が要求する test back pressure ではない) |
 | 3. Out-of-process supervisor | 停止条件を外部 hook で grep block | MAPE-K | prompt-text-only (= 原則は skill 本文と Completion Check routine にあるが、 grep block hook は無い) |
 | 4. Watchdog (in-band) | wave 毎の budget cap、 反復上限 | ROS software watchdog | prompt-text-only (= Stop conditions 4 件は本文指示のみ、 budget cap / 反復上限の code は無い) |
 | 5. E-stop (out-of-band) | 破壊的操作 denylist、 手動 kill | ROS Nav2 Safety Node | not-built (= settings の deny は secret Read のみ、 破壊的操作 denylist は無い) |
@@ -47,7 +47,7 @@
 | 11. Hermetic / content-addressed | input closure hash で agent step を memoize | Bazel / Nix | not-built |
 | 12. UAT 引き渡し品質 | 人間 UAT に必要な素材を AI が揃える | 本ハーネス固有 | implemented (= `$finish-task` + boundary skill (`$prepare-uat`) が 9 要素を実運用で生成) |
 
-> **読み方**: implemented は 12 層中 3 層のみ (= 1 / 2 / 12)。 5 / 7 / 8 / 9 / 10 / 11 の 6 層は該当語がこの表以外に存在しない (= 紙の防御層)。 この表を 「12 層で守られている」 と読まない。 組織 rollout 等でこのスタックを引用する際は、 実装状態列まで含めて引用する。
+> **読み方**: implemented は 12 層中 2 層のみ (= 1 / 12)。 5 / 7 / 8 / 9 / 10 / 11 の 6 層は該当語がこの表以外に存在しない (= 紙の防御層)。 この表を 「12 層で守られている」 と読まない。 組織 rollout 等でこのスタックを引用する際は、 実装状態列まで含めて引用する。
 
 ## 4. システム構成
 
