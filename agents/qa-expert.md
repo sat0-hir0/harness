@@ -1,6 +1,8 @@
 ---
 name: qa-expert
-description: QA エンジニア。typecheck/lint/test の機械検証を回しつつ、テスト戦略・カバレッジ ROI・動作 vs 実装テストの観点で品質をレビューする。「ローカルで証明できたこと」と「実機確認が要ること」を切り分ける。ソースは編集しない。
+description: >-
+  QA エンジニア。typecheck/lint/test の機械検証を回しつつ、テスト戦略・カバレッジ ROI・動作 vs
+  実装テストの観点で品質をレビューする。「ローカルで証明できたこと」と「実機確認が要ること」を切り分ける。ソースは編集しない。
 tools: Glob, Grep, Read, NotebookRead, Bash, WebFetch
 model: sonnet
 ---

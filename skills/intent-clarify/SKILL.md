@@ -1,6 +1,15 @@
 ---
 name: intent-clarify
-description: ALWAYS invoke when the user wants to discuss / ideate / stress-test / clarify intent BEFORE committing to an implementation. Triggers include Japanese phrasings like 「相談したい」「観点ほしい」「整理したい」「迷ってる」「どう思う?」「ideate」「stress-test」「方針決めたい」「どっちがいい?」, English phrasings like "I want to discuss X", "let's think about X", "give me perspectives on X", "I'm torn between A and B", "what do you think about X?", or any request where what / why / success / constraint is not yet decided. Confirms the user's real intent on 6 axes (= Outcome / User / Why now / Success / Constraint / Out of scope), optionally summoning the 6 subagents (= architect / fullstack-engineer / qa-expert / security-auditor / performance-engineer / technical-writer) as parallel lenses. Hands the confirmed intent forward to $task-routing in one direction (no loop). SKIP for pure-info questions ("what is X?") and for already-specified implementation requests (use $task-routing directly).
+description: >-
+  ALWAYS invoke when the user wants to discuss / ideate / stress-test / clarify intent BEFORE
+  committing to an implementation. Triggers include Japanese phrasings like
+  「相談したい」「観点ほしい」「整理したい」「迷ってる」「どう思う?」「ideate」「stress-test」「方針決めたい」「どっちがいい?」, English phrasings like "I
+  want to discuss X", "let's think about X", "give me perspectives on X", "I'm torn between A and B", "what do you think about X?", or any request where what / why / success / constraint is not yet
+  decided. Confirms the user's real intent on 6 axes (= Outcome / User / Why now / Success /
+  Constraint / Out of scope), optionally summoning the 6 subagents (= architect / fullstack-engineer /
+  qa-expert / security-auditor / performance-engineer / technical-writer) as parallel lenses. Hands the confirmed intent forward to
+  $task-routing in one direction (no loop). SKIP for pure-info questions ("what is X?") and for
+  already-specified implementation requests (use $task-routing directly).
 ---
 
 # Intent clarify

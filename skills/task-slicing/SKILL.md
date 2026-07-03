@@ -1,6 +1,13 @@
 ---
 name: task-slicing
-description: ALWAYS invoke when the user asks to slice / split / decompose a large feature into stages or waves. Triggers include Japanese phrasings like 「wave に切って」「スライスして」「段階分けして」「feature を分割して」「どう段階化する?」「リリース計画を立てて」, English phrasings like "slice this", "break this into waves", "stage this rollout", "decompose this feature". Also auto-invoked when `$task-routing` returns `delegate-slice` verdict for L+ tasks (= 5+ files / cross-layer / multiple judgements). Outputs a slice plan with UAT-able vertical waves mapped to release / flag stages (= 実装はしない). 本 skill 内で参照される project skill 名 (= 例: $propose-adr / $start-task / $review-pr) は project 個別の慣例で、 違うプロジェクトでは hand-off 行をそのプロジェクトの chain に読み替える。 SKIP for XS-S tasks (= 1-4 files, single feature) and pure-info questions.
+description: >-
+  ALWAYS invoke when the user asks to slice / split / decompose a large feature into stages or waves.
+  Triggers include Japanese phrasings like 「wave に切って」「スライスして」「段階分けして」「feature
+  を分割して」「どう段階化する?」「リリース計画を立てて」, English phrasings like "slice this", "break this into waves", "stage
+  this rollout", "decompose this feature". Also auto-invoked when `$task-routing` returns `delegate-slice` verdict for L+ tasks (= 5+ files / cross-layer / multiple judgements). Outputs a
+  slice plan with UAT-able vertical waves mapped to release / flag stages (= 実装はしない). 本 skill 内で参照される
+  project skill 名 (= 例: $propose-adr / $start-task / $review-pr) は project 個別の慣例で、 違うプロジェクトでは hand-off
+  行をそのプロジェクトの chain に読み替える。 SKIP for XS-S tasks (= 1-4 files, single feature) and pure-info questions.
 ---
 
 # Task slicing

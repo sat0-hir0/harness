@@ -1,6 +1,14 @@
 ---
 name: finish-task
-description: ALWAYS invoke before reporting "done" / "完了" / "終わった" / "PR 作る" / "merge" / "ship" on any delegate-single or delegate-slice task, or any wave that produced files. Triggers include Japanese phrasings like 「完了報告」「終わったよ」「タスク終わった」「まとめて」「PR 作る前にまとめて」「report を出して」, English phrasings like "report done", "task complete", "wrap this up", "summarize what's done", "PR-ready report". Generates a single structured completion report integrating spec coverage, UAT scripts, evidence artifacts, unresolved items, and AI usage disclosure. Separates claim (= what was done) from proof (= evidence). Merges former uat-script + evidence-collection + completion-report into one workflow. SKIP only when the verdict was Lead-direct AND no files were changed (= pure-info / read-only sessions).
+description: >-
+  ALWAYS invoke before reporting "done" / "完了" / "終わった" / "PR 作る" / "merge" / "ship" on any
+  delegate-single or delegate-slice task, or any wave that produced files. Triggers include Japanese
+  phrasings like 「完了報告」「終わったよ」「タスク終わった」「まとめて」「PR 作る前にまとめて」「report を出して」, English phrasings like "report done", "task complete", "wrap this up", "summarize what's done", "PR-ready report".
+  Generates a single structured completion report integrating spec coverage, UAT scripts, evidence
+  artifacts, unresolved items, and AI usage disclosure. Separates claim (= what was done) from proof
+  (= evidence). Merges former uat-script + evidence-collection + completion-report into one workflow.
+  SKIP only when the verdict was Lead-direct AND no files were changed (= pure-info / read-only
+  sessions).
 ---
 
 # Finish task

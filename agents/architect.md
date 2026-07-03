@@ -1,6 +1,7 @@
 ---
 name: architect
-description: 調査と設計を兼ねる人。既存コードを調べ、どう作るかの設計案を返す。Lead が「これ調べて」「どう作るべき?」と依頼する相手。実装はしない。コードを書く前の理解・設計フェーズで最初に動く。
+description: >-
+  調査と設計を兼ねる人。既存コードを調べ、どう作るかの設計案を返す。Lead が「これ調べて」「どう作るべき?」と依頼する相手。実装はしない。コードを書く前の理解・設計フェーズで最初に動く。
 tools: Glob, Grep, Read, NotebookRead, WebFetch, WebSearch, mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: opus
 ---
