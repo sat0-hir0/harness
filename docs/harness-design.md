@@ -380,3 +380,13 @@ surface 直後の chat に Lead が以下の 1 行 log を必ず出す (= 履歴
 - label を介した **状態遷移 trigger** (= 「ラベルを付けたら status が動く」 のような間接的な遷移トリガー。 責務が間接的になるため不採用)
 
 > **`running` ラベルとの関係 (= 上記の例外ではない)**: `running` ラベルは **状態遷移 trigger ではなく排他ロック memo** (= optimistic locking の claim 印、 §9)。 「`running` が付いたから status が動く」 のではなく、 status 遷移は常に明示的な script (= `issue-status.ps1` 等) が行い、 `running` は 「今 claim されているか」 を記録するだけ。 heartbeat はこのラベルを **読んで** race を判定するが、 ラベルが status を **動かす** ことはない。 同様に `long-running` も状態を記録するだけで遷移を起こさない。 したがって両ラベルは 「状態遷移 trigger 不採用」 の方針と矛盾しない。
+
+## 16. Done の定義 (= board Done と git merged の一致)
+
+> この節は末尾に追記する (= §10〜§15 の連番を動かさない)。 過去に §10 挿入で以降を繰り下げた際、 repo 内 1 件 + repo 外 7 件の `§N` deep link がずれた。 新規節は **常に末尾に足す** ことで既存参照を保全する。
+
+**Done の唯一の定義は、 対応 PR が main に merge された状態である**。 board 上で Done column に入っていることと、 対応 branch が main に merge 済みであることは、 常に一致する。
+
+**Done への遷移主体は built-in workflow (= 自動)**。 board で要求を Done column に移すのは、 PR が main に merge された時に built-in workflow (= GitHub Projects の PR merge → Done 自動遷移) が行う。 board の Done は git merged の **後追い** であり、 先行しない。 boundary skill (= 例: `$prepare-uat`) が置くのは Awaiting UAT までで、 **AI が merge 未確認のまま自己判定で Done に動かすことは禁止** (= §15 「AI 自己判定での PR merge」 不採用と同軸)。 人間が merge を実行 / 承認した結果として built-in workflow が Done に運ぶ、 という因果を守る。
+
+unmerged なまま Done column に置かれた card は不整合である。 §9 の heartbeat が拾う stuck 判定 (= `running` + `long-running` の同居) とは別軸の異常であり、 「Done なのに branch が残っている」 状態は stale branch として扱う。 stale branch は、 該当 Issue の card が Done にあるにもかかわらず未 merge の branch が存在する状態を指す。
