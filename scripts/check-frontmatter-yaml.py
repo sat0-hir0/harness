@@ -14,6 +14,13 @@ loaded. This lint catches those cases and enforces a safe scalar style
 (`>-` folded block, `|-` literal block, or quoted) so the field survives a
 round-trip.
 
+On top of parse safety, the lint enforces a length budget: descriptions render
+into the vendor's skill / agent picker, which truncates at ~1,535 chars
+(observed live 2026-07-03: task-routing at 1,684 chars was cut mid-sentence;
+docs/wip/harness-evaluation-2026-07-02.md section 11.2). Lengths over 1,400
+chars warn (exit 0, headroom shrinking); lengths at or past 1,535 fail,
+because everything beyond the cap is silently dropped at render time.
+
 Standard library only (no PyYAML): the pre-push hook runs bare `python`, and a
 lightweight per-line simulation is enough to flag the two failure modes without
 reimplementing a full YAML parser.
@@ -26,7 +33,7 @@ Usage
 
 Exit codes
 ----------
-    0   no violations
+    0   no violations (warnings may still be printed)
     1   at least one violation found
     2   invocation error (bad args)
 """
@@ -51,14 +58,24 @@ else:
 # directory this script lives under, one level up from `scripts/`).
 DEFAULT_GLOBS = ("skills/*/SKILL.md", "agents/*.md")
 
+# Length budget for the loaded description, in chars. The live render cap was
+# observed at ~1,535 chars (2026-07-03: task-routing's 1,684-char description
+# was truncated mid-sentence in the deployed picker; see
+# docs/wip/harness-evaluation-2026-07-02.md section 11.2). Warn above the soft
+# budget so authors trim while there is still headroom; fail at the cap
+# because chars past it are silently dropped at render time.
+DESC_LENGTH_WARN_OVER = 1400  # warn when loaded length > this (exit 0)
+DESC_LENGTH_FAIL_AT = 1535  # fail when loaded length >= this (exit 1)
+
 
 @dataclass
 class Violation:
     file: str
     line: int
-    category: str  # see the four categories documented in main()'s help.
+    category: str  # see the five categories documented in main()'s help.
     excerpt: str
     detail: str
+    severity: str = "error"  # "error" drives exit 1; "warning" prints, exit 0.
 
 
 def repo_root() -> Path:
@@ -272,6 +289,97 @@ def collect_plain_scalar_continuations(
     return out
 
 
+def collect_block_scalar_body(fm_lines: list[str], desc_idx: int) -> list[str]:
+    """Gather the (stripped) body lines of a `>-` / `|-` block scalar.
+
+    Blank lines are kept as empty strings — they are legal inside a block
+    scalar and matter for folding — but trailing blanks are dropped, matching
+    the `-` chomping indicator used in these files.
+    """
+    out: list[str] = []
+    for line in fm_lines[desc_idx + 1 :]:
+        if line.strip() == "":
+            out.append("")
+            continue
+        if line[:1] not in (" ", "\t"):
+            break
+        out.append(line.strip())
+    while out and out[-1] == "":
+        out.pop()
+    return out
+
+
+def loaded_description_length(
+    value: str, fm_lines: list[str], desc_idx: int
+) -> int:
+    """Approximate the char count of the description as YAML loads it.
+
+    This is the length that counts against the render cap: what the loader
+    yields, not what sits in the file. Per scalar style:
+
+      * folded block (`>` / `>-`): body lines join with a single space; a
+        blank line folds to a newline (counted as 1 char — within +-1 of true
+        folding, close enough for a budget check).
+      * literal block (`|` / `|-`): body lines join with newlines.
+      * quoted: the surrounding quotes are dropped (single-line heuristic,
+        matching check_quoted_symmetry).
+      * plain: the first line joins its continuation lines with single spaces.
+    """
+    if value.startswith((">", "|")):
+        body = collect_block_scalar_body(fm_lines, desc_idx)
+        joiner = "\n" if value.startswith("|") else " "
+        non_blank = [line for line in body if line]
+        blanks = len(body) - len(non_blank)
+        return len(joiner.join(non_blank)) + blanks
+    if value[:1] in ("'", '"'):
+        body = value.rstrip()
+        if len(body) >= 2 and body[-1] == body[0]:
+            return len(body) - 2
+        return max(len(body) - 1, 0)
+    parts = [value, *collect_plain_scalar_continuations(fm_lines, desc_idx)]
+    return len(" ".join(p for p in parts if p))
+
+
+def check_description_length(
+    path: str, file_line: int, excerpt: str, length: int
+) -> list[Violation]:
+    """Apply the length budget. Returns a fail / warn Violation or nothing."""
+    if length >= DESC_LENGTH_FAIL_AT:
+        return [
+            Violation(
+                file=path,
+                line=file_line,
+                category="description-over-length",
+                excerpt=excerpt,
+                detail=(
+                    f"description loads as {length} chars, at or past the "
+                    f"observed live render cap of {DESC_LENGTH_FAIL_AT} chars "
+                    "(2026-07-03: a 1,684-char description was truncated "
+                    "mid-sentence in the deployed picker); everything past "
+                    "the cap is silently dropped — trim the description"
+                ),
+            )
+        ]
+    if length > DESC_LENGTH_WARN_OVER:
+        return [
+            Violation(
+                file=path,
+                line=file_line,
+                category="description-over-length",
+                excerpt=excerpt,
+                detail=(
+                    f"description loads as {length} chars, over the "
+                    f"{DESC_LENGTH_WARN_OVER}-char budget and within "
+                    f"{DESC_LENGTH_FAIL_AT - length} chars of the observed "
+                    f"live render cap ({DESC_LENGTH_FAIL_AT}); trim before "
+                    "it truncates"
+                ),
+                severity="warning",
+            )
+        ]
+    return []
+
+
 def check_quoted_symmetry(value: str) -> str | None:
     """For a quoted scalar, verify the closing quote is present on the line.
 
@@ -327,17 +435,13 @@ def scan_file(path: str) -> list[Violation]:
             return [
                 Violation(path, file_line, "description-missing", excerpt, detail)
             ]
-        return []
-
-    first = value[0]
-    if value.startswith((">", "|")):
+    elif value.startswith((">", "|")):
         detail = check_block_scalar_indent(fm_lines, desc_idx)
         if detail is not None:
             return [
                 Violation(path, file_line, "description-missing", excerpt, detail)
             ]
-        return []
-    if first in ("'", '"'):
+    elif value[0] in ("'", '"'):
         detail = check_quoted_symmetry(value)
         if detail is not None:
             return [
@@ -345,32 +449,43 @@ def scan_file(path: str) -> list[Violation]:
                     path, file_line, "description-scanner-error", excerpt, detail
                 )
             ]
-        return []
+    else:
+        # Plain scalar (possibly multi-line): fold the first line together with
+        # any continuation lines and simulate breakage over each. A ` #` or
+        # `: ` on a wrapped line breaks the scan just as it would on the first
+        # line, so checking only `value` would be a false negative.
+        continuations = collect_plain_scalar_continuations(fm_lines, desc_idx)
+        for offset, chunk in enumerate([value, *continuations]):
+            result = simulate_plain_scalar_breakage(
+                chunk, is_first_line=(offset == 0)
+            )
+            if result is not None:
+                category, detail = result
+                chunk_line = file_line + offset
+                chunk_excerpt = excerpt if offset == 0 else chunk[:200]
+                return [
+                    Violation(path, chunk_line, category, chunk_excerpt, detail)
+                ]
 
-    # Plain scalar (possibly multi-line): fold the first line together with any
-    # continuation lines and simulate breakage over each. A ` #` or `: ` on a
-    # wrapped line breaks the scan just as it would on the first line, so
-    # checking only `value` would be a false negative.
-    continuations = collect_plain_scalar_continuations(fm_lines, desc_idx)
-    for offset, chunk in enumerate([value, *continuations]):
-        result = simulate_plain_scalar_breakage(chunk, is_first_line=(offset == 0))
-        if result is not None:
-            category, detail = result
-            chunk_line = file_line + offset
-            chunk_excerpt = excerpt if offset == 0 else chunk[:200]
-            return [Violation(path, chunk_line, category, chunk_excerpt, detail)]
-    return []
+    # Parse checks passed — the description loads as written. Now enforce the
+    # length budget against what the loader yields (the rendered length).
+    length = loaded_description_length(value, fm_lines, desc_idx)
+    return check_description_length(path, file_line, excerpt, length)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Detect YAML frontmatter description corruption in skill / agent files. "
+            "Detect YAML frontmatter description corruption and over-length "
+            "descriptions in skill / agent files. "
             "Categories: description-truncated (plain scalar cut at ' #'), "
             "description-scanner-error (plain scalar with ': ' read as a mapping), "
             "description-missing (no / empty description), "
-            "frontmatter-missing (no '---' block). "
-            "Fix by switching description to a '>-' folded block scalar."
+            "frontmatter-missing (no '---' block), "
+            f"description-over-length (warn > {DESC_LENGTH_WARN_OVER} chars, "
+            f"fail >= {DESC_LENGTH_FAIL_AT} chars = observed live render cap). "
+            "Fix parse breaks by switching description to a '>-' folded block "
+            "scalar; fix length by trimming the description."
         ),
     )
     parser.add_argument(
@@ -392,16 +507,22 @@ def main() -> int:
     for f in targets:
         findings.extend(scan_file(f))
 
+    errors = [v for v in findings if v.severity == "error"]
+
     if args.json:
         print(json.dumps([asdict(v) for v in findings], ensure_ascii=False, indent=2))
     else:
         if not findings:
-            print("OK: all frontmatter descriptions load cleanly.")
+            print("OK: all frontmatter descriptions load cleanly and fit the length budget.")
+        elif not errors:
+            print("OK: descriptions load cleanly; length warnings below (not blocking).")
         for v in findings:
-            print(f"{v.file}:{v.line}:{v.category}: {v.excerpt}")
+            prefix = "warning: " if v.severity == "warning" else ""
+            print(f"{prefix}{v.file}:{v.line}:{v.category}: {v.excerpt}")
             print(f"    -> {v.detail}")
 
-    return 1 if findings else 0
+    # Warnings print but do not block; only errors flip the exit code.
+    return 1 if errors else 0
 
 
 if __name__ == "__main__":
