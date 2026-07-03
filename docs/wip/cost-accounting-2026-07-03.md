@@ -6,7 +6,7 @@ backlog 自律運転 (= cron heartbeat / completion-check / delegate 実装 chai
 
 cron session (heartbeat / completion-check) と実装 chain の Lead は全 API call が **claude-opus-4-8** (1M context 変種、transcript の `model` フィールドで確認)。subagent は opus-4-8 / sonnet-5 / sonnet-4-6 / haiku-4-5 の混成。cache write は全サンプルで **1h TTL** (`cache_creation.ephemeral_1h_input_tokens`、5m TTL は 0)。
 
-換算単価 ($/MTok): opus-4-8 = input 5.00 / output 25.00 / cache write (1h) 10.00 / cache read 0.50。sonnet 系 = 3.00 / 15.00 / 6.00 / 0.30。haiku 4.5 = 1.00 / 5.00 / 2.00 / 0.10。
+換算単価 ($/MTok): opus-4-8 = input 5.00 / output 25.00 / cache write (1h) 10.00 / cache read 0.50。sonnet 系 = 3.00 / 15.00 / 6.00 / 0.30。haiku 4.5 = 1.00 / 5.00 / 2.00 / 0.10。なお sonnet-5 には introductory pricing (= 2.00 / 10.00 / 4.00 / 0.20、2026-08-31 まで。pricing docs 記載) があり、本計測の「sonnet 系」単価は post-intro (= sonnet-4-6 と同額) で換算しているため、intro 期間中の sonnet-5 分は過大計上になっている。
 
 ## コスト表
 
