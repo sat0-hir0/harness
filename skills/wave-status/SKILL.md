@@ -34,7 +34,7 @@ description: >-
 
 ホストプロジェクト独自のセッション記録規約がある場合 (= 例: Limn の `.skillshare/records/waves/`)、Lead はそちらにファイルを置いてもよい。 ただし **どちらか 1 つを選んだら最後まで一貫させる**: 同じ feature について global と project の両方にファイルを置くと SSOT が壊れる。
 
-**SSOT 規約 (= 重要)**: `init` 時に決めたパスを、 ファイル自体の frontmatter (= 下記 `path: ...`) に記録する。 以降の `mark` / `show` はその path を辿る。 これで複数 session 跨ぎの drift を防ぐ。 vendor を跨いで続きを扱う場合 (= 例: Claude Code で init した feature を Codex session で mark) は、 自 vendor の `state/` に file が無ければ他 vendor home (= 上記一覧) の `state/slice-<slug>.md` を順に探し、 見つけた file をそのまま使う (= init した vendor の file が SSOT、 複製 / 移動しない)。
+**SSOT 規約 (= 重要)**: `init` 時に決めたパスを、 ファイル自体の frontmatter (= 下記 `path: ...`) に記録する。 以降の `mark` / `show` はその path を辿る。 これで複数 session 跨ぎの drift を防ぐ。 vendor を跨いで続きを扱う場合 (= 例: Claude Code で init した feature を Codex session で mark) は、 自 vendor の `state/` に file が無ければ他 vendor home (= 上記一覧) の `state/slice-<slug>.md` を順に探し、 見つけた file をそのまま使う (= init した vendor の file が SSOT、 複製 / 移動しない)。 **重複時の tie-break**: 万一複数の vendor home に同一 slug の file が既に存在する場合 (= 過去の init 事故の名残)、 mtime が最新の file を SSOT として採用し、 warning を出す (= 検出した全 path を列挙し、 user に古い方の統合 / 削除を促す。 黙って削除しない)。 この tie-break は init / mark / read 全ての lookup に適用する。
 
 ## File format
 
@@ -80,9 +80,13 @@ plan_source: <スライス計画の場所>   # optional
 - **Read**: `$task-slicing` が出力したスライス計画を読む (= 入力として渡されるか、`plan_source` 経由で見つける)。
 - **Decide**: フィーチャーのスラッグを決める。デフォルトは最初の名詞句を正規化したもの。
 
-### Step 1-2: Create file
-- **Output**: `<vendor-home>/state/slice-<slug>.md` を書き出す (= `<vendor-home>` は File location の per-vendor 自己判定で解決)。front matter と wave ごとに 1 行のチェックボックス行 (すべて `todo`) を含める。
-- **Stop on**: ファイルが既に存在する場合。ユーザーに知らせ、re-init (= 上書き) かマージかを選ばせる。
+### Step 1-2: Cross-vendor existence check
+- **Read**: 書き出す前に、 **全 vendor home** の `state/slice-<slug>.md` を順に探す (= File location の一覧: `~/.claude/` / `~/.codex/` / `~/.cursor/` / `~/.gemini/` / `~/.agents/`。 SSOT 規約の cross-vendor lookup と同じ)。 project 規約の置き場を使っている場合 (= 例: `.skillshare/records/waves/`) はそちらも確認する。
+- **Decide**: 既存 file が見つかった場合は **新規 file を作らない**。 見つけた file をそのまま SSOT として採用 (= adopt) し、 ユーザーに知らせて re-init (= **その file を元の path のまま** 上書き) / マージ / そのまま採用継続 を選ばせる。 自 vendor home 側に 2 個目を作るのはどの選択でも禁止。
+- **Stop on**: 複数の vendor home で同一 slug の file が重複して見つかった場合。 mtime が最新の file を採用候補とし、 全 path を warning で列挙して user に統合 / 削除を確認する (= SSOT 規約の tie-break 参照)。
+
+### Step 1-3: Create file
+- **Output**: どの vendor home にも既存 file が無い場合のみ、 `<vendor-home>/state/slice-<slug>.md` を書き出す (= `<vendor-home>` は File location の per-vendor 自己判定で解決)。front matter と wave ごとに 1 行のチェックボックス行 (すべて `todo`) を含める。
 
 ## Phase 2: Mark
 
@@ -174,6 +178,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "🔄 Plan 更新
 ## Boundary
 
 - **Never** 既存のステータスファイルを無言で上書きしない。確認するか拒否する。
+- **Never** 同一 feature の slice file を複数の vendor home に作らない (= init 前の cross-vendor existence check は必須、 Step 1-2)。 既存 file を見つけたら adopt する。
 - **Never** スライス計画にない wave を作り出さない。ステータスファイルは計画のミラー。計画が変わった場合はユーザーが re-init または手動編集する。
 - **Never** ステータスを自動で進めない (= `todo` → `in-progress` は Lead の判断、skill が行うものではない)。
 - **Must** 冪等であること。既に `done` の wave を再度 `done` にしてもエラーにしない (= Log には touch を記録する)。
@@ -195,7 +200,7 @@ wave-status init: <vendor-home>/state/slice-<slug>.md created with N waves (= al
 next: Wave 1 — <one-line goal>
 ```
 
-`<vendor-home>` は解決済みの実 path で出力する (= 例: Claude Code なら `~/.claude/state/slice-sidebar.md`)。
+`<vendor-home>` は解決済みの実 path で出力する (= 例: Claude Code なら `~/.claude/state/slice-sidebar.md`)。 既存 file を adopt した場合 (= Step 1-2) は `created` の代わりに `adopted existing <path>` と出力する (= 新規作成していないことを明示)。
 
 ### mark
 ```
