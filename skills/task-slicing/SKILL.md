@@ -208,7 +208,7 @@ Wave は **クリーンにマージされ (DoD 完了)** て初めて done と�
 
 上記テンプレートで slice plan を返す。Lead はそのまま Wave 1 の hand-off に進む (= プロジェクトのチェーンに従って `$propose-adr` 等を呼び出す)。
 
-Plan が書けたら、`$wave-status` (= 兄弟 skill) で進捗トラッキングを登録する。ステータスファイル (`~/.claude/state/slice-<feature>.md` またはプロジェクト固有のパス) が wave のチェックボックスを持ち、`$wave-status` が wave マージのたびに更新する。
+Plan が書けたら、`$wave-status` (= 兄弟 skill) で進捗トラッキングを登録する。ステータスファイル (`<vendor-home>/state/slice-<feature>.md` またはプロジェクト固有のパス。 `<vendor-home>` の解決は wave-status SKILL.md の File location 参照) が wave のチェックボックスを持ち、`$wave-status` が wave マージのたびに更新する。
 
 ## Worked example: ディレクトリツリーフィーチャー (= VSCode Explorer 風サイドバー)
 
@@ -406,7 +406,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "<comment>"
 - (= 無ければ 「なし」)
 
 ## wave-status
-- file: ~/.claude/state/slice-<feature>.md (= 進捗の SSOT)
+- file: <vendor-home>/state/slice-<feature>.md (= 進捗の SSOT、 <vendor-home> は wave-status の per-vendor 自己判定で解決)
 ```
 
 ## Project connection (= 実際のリポジトリへの組み込み方)
