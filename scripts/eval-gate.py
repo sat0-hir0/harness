@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
-"""Gate a git push on eval regression for the skills / agents it touches.
+"""Gate a git push on the fixture-sync lint for the skills / agents it touches.
+
+This is a **fixture-sync lint**, not a behavioral regression check. It does NOT
+execute any skill (skills only run inside a Claude Code session), so it cannot
+detect that a SKILL.md edit changed real behavior. What it verifies is narrower
+and deterministic: that the hand-written `eval/cases/*.yaml` still match the
+committed `eval/baseline/*.yaml`. Its value is forcing an author who edits a
+case to consciously re-baseline, keeping the two fixtures in sync.
 
 Invoked from `lefthook.yml` as the `pre-push` hook. Reads the push plan on
 stdin (git's `<local_ref> <local_sha> <remote_ref> <remote_sha>` lines),
-computes the set of files the push introduces, and maps them to eval targets:
-`skills/<name>/SKILL.md` runs that skill's regression, and any `agents/*.md`
-change fans out to `--skill all`. Each target runs `eval-regression.py`; a
-non-zero exit (drift or missing baseline) blocks the push. Standard library
-only.
+computes the set of files the push introduces, and maps them to lint targets:
+`skills/<name>/SKILL.md` runs that skill's fixture-sync check, and any
+`agents/*.md` change fans out to `--skill all`. Each target runs
+`eval-regression.py`; a non-zero exit (cases/baseline out of sync, or missing
+baseline) blocks the push. Standard library only.
 
 Usage
 -----
@@ -16,8 +23,8 @@ Usage
 
 Exit codes
 ----------
-    0   no skill/agent changes, or all targets clean
-    1   at least one target reports drift / missing baseline (push blocked)
+    0   no skill/agent changes, or all targets in sync
+    1   at least one target is out of sync / missing baseline (push blocked)
 """
 
 from __future__ import annotations
@@ -176,9 +183,10 @@ def run_regression(target: str) -> subprocess.CompletedProcess[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Block a git push when its skill/agent changes drift from the eval "
-            "baseline. Reads git pre-push lines on stdin; --range is for manual "
-            "verification."
+            "Fixture-sync lint: block a git push when its skill/agent changes "
+            "leave eval/cases and eval/baseline out of sync (does not execute "
+            "skills, so it is not a behavioral regression check). Reads git "
+            "pre-push lines on stdin; --range is for manual verification."
         ),
     )
     parser.add_argument(
@@ -210,7 +218,7 @@ def main() -> int:
         print("no skill/agent changes in push range; skip")
         return 0
 
-    print(f"eval-gate: running regression for target(s): {', '.join(targets)}")
+    print(f"eval-gate: running fixture-sync lint for target(s): {', '.join(targets)}")
     failures: list[str] = []
     for t in targets:
         proc = run_regression(t)
@@ -224,17 +232,20 @@ def main() -> int:
             failures.append(f"[{t}] {detail}")
 
     if failures:
-        print("eval-gate: push blocked by baseline drift / missing baseline", file=sys.stderr)
+        print("eval-gate: push blocked — cases/ and baseline/ are out of sync", file=sys.stderr)
         for f in failures:
             print(f"  {f}", file=sys.stderr)
         print(
-            "Update the baseline (eval-baseline.py) after the change is correct, "
-            "or resolve the drift, before pushing.",
+            "This is a fixture-sync lint, not a behavioral regression check: it "
+            "only reports that the hand-written cases/ no longer match baseline/. "
+            "Review the diff (eval-regression.py --skill <name>) and confirm the "
+            "new expected output is what you intend, THEN re-baseline with "
+            "eval-baseline.py before pushing. Do not re-baseline reflexively.",
             file=sys.stderr,
         )
         return 1
 
-    print("eval-gate: no drift from baseline; push allowed")
+    print("eval-gate: cases/ and baseline/ in sync; push allowed")
     return 0
 
 

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """eval-regression.py — baseline と現在の case output を diff し、 ズレを検出する。
 
-eval-baseline.py が固定した baseline/*.baseline.yaml と、 現在の cases/*.yaml が
-生成する期待 output を比較する。 skill / case を編集した結果、 期待 output が
-baseline から変わっていれば regression として報告する。 差分ゼロなら exit 0、
-差分ありなら exit 1 (= CI / pre-commit gate で使える)。
+fixture-sync lint の本体。 eval-baseline.py が固定した baseline/*.baseline.yaml と、
+現在の cases/*.yaml が生成する期待 output を比較する。 skill / case を編集した結果、
+期待 output が baseline から変わっていれば「未同期」として報告する (= skill を実行
+しないため挙動回帰そのものは検知しない。 fixture 同士の同期を lint するだけ)。 差分
+ゼロなら exit 0、 差分ありなら exit 1 (= CI / pre-push gate で使える)。
 
 judge (= --judge) を付けると、 単純な構造 diff に加えてローカル Ollama judge に
 「baseline と現在が semantic に等価か」を判定させる (= 表記ゆれを許容した比較)。
