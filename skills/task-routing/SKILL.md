@@ -114,8 +114,8 @@ Step 1-1 NO  AND  Step 1-2 YES  AND  Step 1-3 YES   → Lead-direct
 - `Lead-direct`: 実装に進む。
 - `delegate-single`: `architect` (= read-only 調査 + 設計) → `fullstack-engineer` (= 実装) → `qa-expert` (= 敵対的レビュー 兼 typecheck/test) + `security-auditor` (= 敵対的レビュー) を並列 spawn。 Lead は監督、 **ファイル編集しない**。
   - **必須 (= S 以上)**: 実装後に `qa-expert` + `security-auditor` を **必ず並列 spawn** する。 Lead が直接実装してレビュー / 検証を兼ねる代替は **不可** (= 自己レビューは敵対的視点を欠く、 spawn 省略は単独責任で品質落ちる主因)。
-  - **サイズ免除 (= XS または docs-only のみ)**: scope が XS、 または impact scope が docs-only の `delegate-single` に限り、 dual spawn の代わりに **Lead spot-check** を許可する。 size 境界は `$task-slicing` の 「Size テーブル」 が SoT (= 本 skill で数値を再掲しない)。 条件: **何を spot-check したかを 1 行で記録** する (= 例: `spot-check: diff 全読 + markdownlint + リンク先実在確認`)。 記録なしの省略は不可。
-  - 免除の発動条件は **size class 判定のみ**。 S 以上を 「軽微だから」 「すぐ済むから」 と主観で省略するのは従来どおり **不可**。 spawn を skip して良いのは Lead-direct verdict と上記サイズ免除のときだけ。
+  - **サイズ免除 (= XS、 または docs-only かつ S 以下)**: scope が **XS** (= impact scope 不問)、 または **docs-only かつ size S 以下** の `delegate-single` に限り、 dual spawn の代わりに **Lead spot-check** を許可する。 **docs-only でも M 以上 (= 複数ファイルにまたがる設計 doc / ADR 群の編集) は dual review 必須** (= 独立レビューの価値が最も高いのは大きな設計文書)。 size 境界は `$task-slicing` の 「Size テーブル」 が SoT (= 本 skill で数値を再掲しない)。 条件: **何を spot-check したかを 1 行で記録** する (= 例: `spot-check: diff 全読 + markdownlint + リンク先実在確認`)。 記録なしの省略は不可。
+  - 免除の発動判定は **客観条件のみ (= size class + docs-only の 2 軸)**。 免除条件外を 「軽微だから」 「すぐ済むから」 と主観で省略するのは従来どおり **不可**。 spawn を skip して良いのは Lead-direct verdict と上記サイズ免除のときだけ。
 - `delegate-slice`: `$task-slicing` invoke。 slice plan 完了後 user 承認、 各 wave を `delegate-single` 相当で回す。
   - **無人起動時 (= `$issue-execute` 経由 / 人間不在の自動 session) は user 承認を待たず自動 proceed**。 承認者が不在なので計画提示で止まらない。 計画を `$prepare-uat` に逃がして実装を放棄するのは **禁止** (= 詳細は `$task-slicing` の 「無人起動時のデフォルト」 セクション)。
   - **必須**: 各 wave で **qa-expert + security-auditor を必ず spawn** する。 wave スキップ (= 「この wave は小さいから review 省略」) は **不可**。
