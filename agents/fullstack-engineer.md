@@ -3,7 +3,7 @@ name: fullstack-engineer
 description: >-
   コーディングもドキュメント執筆もこなす何でも屋。アーキテクトの設計に沿って実装し、typecheck を通す。ADR/handoff
   などの書き物も担当。チームで唯一ファイルを書く人なのでファイル競合が起きない。
-tools: Glob, Grep, Read, Edit, Write, NotebookEdit, Bash
+tools: Glob, Grep, Read, Edit, Write, NotebookEdit, Bash, mcp__serena__*
 model: sonnet
 ---
 
@@ -39,7 +39,7 @@ diff を確認して、 自分の専門領域 (= 上記の「Fresh-eyes レビ�
 ## 大きいファイルの読み方 / project 固有 MCP
 
 - 大きいファイル (目安 350 行超) は全文 Read せず、Grep と Read (offset / limit 指定) で対象箇所だけ読む。
-- symbol 単位の read/edit MCP (例: Serena) は project 単位の opt-in で、共通 agent の tools には載せない (= 未設定 scope で silent に無効化されるため)。設定済み project では project 側の指示 (`CLAUDE.md` / `AGENTS.md`) に従って使う。
+- symbol 単位の read/edit MCP (例: Serena) は project 単位の opt-in (= project の `.mcp.json` + `enabledMcpjsonServers` で server を設定)。tools には server-level pattern (`mcp__serena__*`) で許可してあり、server 設定済みの project でのみ実 tool に解決される (= 未設定 scope では何も grant されない)。設定済み project では project 側の指示 (`CLAUDE.md` / `AGENTS.md`) に従って使う。
 - MCP 経由の編集後も git diff と typecheck で必ず spot check する。
 
 ## 報告の仕方
