@@ -1,0 +1,83 @@
+# PR re-run of the local pre-push gate (lefthook.yml) on ubuntu-latest, so the
+# gate does not depend on a single Windows machine (backlog #91, test-strategy
+# doc section 7 "PR (CI)" row). Deterministic checks only: no claude / API key /
+# Ollama. Behavioral (LLM) evals stay on-demand per section 7; hosting them here
+# needs an API key secret, which this workflow deliberately avoids.
+name: eval-gate
+
+on:
+  pull_request:
+    paths:
+      # Superset of the local gate's watch set: eval/** and scripts/*.py are
+      # included because fixture edits and lint-script edits both change what
+      # the gate means, and lefthook.yml because it defines the local twin.
+      # docs/** and **.md are included because the future-plans lint's real
+      # surface is doc/report text; without them a docs-only PR (README,
+      # docs/**) never starts the workflow and skips that lint. fixture-sync
+      # also runs on docs-only PRs as a side effect, but the full fixture run
+      # is a seconds-fast structural diff, so splitting the trigger per job is
+      # not worth a second workflow file.
+      - "skills/**"
+      - "agents/**"
+      - "eval/**"
+      - "docs/**"
+      - "**.md"
+      - "scripts/*.py"
+      - "lefthook.yml"
+      - ".github/workflows/eval-gate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Twin of lefthook's frontmatter-lint + agent-ref-lint, plus the
+  # check-future-plans doc-discipline check that locally runs via finish-task.
+  # All three are stdlib-only (no pip install).
+  lints:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # check-future-plans.py --base diffs against the PR base branch, so
+          # the base ref must exist locally (0 = full history, all branches).
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: frontmatter lint
+        run: python scripts/check-frontmatter-yaml.py
+      - name: agent-ref lint
+        run: python scripts/lint-agent-refs.py
+      - name: future-plans lint
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        # origin/<base> instead of a hardcoded origin/main keeps the diff
+        # correct for PRs that target another branch; env-var quoting keeps
+        # the branch name out of shell parsing.
+        run: python scripts/check-future-plans.py --base "origin/${BASE_REF}"
+
+  # Twin of lefthook's eval-gate (scripts/eval-gate.py). CI runs the full
+  # fixture set instead of replicating eval-gate.py's changed-file -> target
+  # mapping, because:
+  # - the full run is a pure YAML structural diff (30 fixture pairs), so it
+  #   finishes in seconds and narrowing targets buys nothing here;
+  # - the mapping only fires on skills/*/SKILL.md and agents/*.md, so a PR
+  #   that edits only eval/cases/ or eval/baseline/ slips past the local
+  #   gate; --skill all closes that gap in CI.
+  # --judge is never passed: the Ollama judge path stays dormant and the
+  # check stays deterministic.
+  fixture-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: install PyYAML
+        run: pip install pyyaml
+      - name: fixture-sync lint
+        run: python eval/scripts/eval-regression.py --skill all
