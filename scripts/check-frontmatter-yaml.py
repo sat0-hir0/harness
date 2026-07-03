@@ -21,9 +21,12 @@ docs/wip/harness-evaluation-2026-07-02.md section 11.2). Lengths over 1,400
 chars warn (exit 0, headroom shrinking); lengths at or past 1,535 fail,
 because everything beyond the cap is silently dropped at render time.
 
-Standard library only (no PyYAML): the pre-push hook runs bare `python`, and a
+Standard library is enough: the pre-push hook runs bare `python`, and a
 lightweight per-line simulation is enough to flag the two failure modes without
-reimplementing a full YAML parser.
+reimplementing a full YAML parser. When PyYAML happens to be installed, the
+length check loads the frontmatter with `yaml.safe_load` and measures the
+description the loader actually yields (authoritative); otherwise it falls
+back to the stdlib estimate, which mirrors YAML folding semantics.
 
 Usage
 -----
@@ -46,6 +49,14 @@ import json
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
+
+# PyYAML is optional: when present the length check measures the loaded
+# description authoritatively; when absent the stdlib estimate below is used,
+# so the bare-`python` pre-push hook keeps working without the dependency.
+try:
+    import yaml
+except ImportError:
+    yaml = None  # type: ignore[assignment]
 
 # Force UTF-8 on stdout so Japanese / em-dash excerpts survive Windows cp932.
 if hasattr(sys.stdout, "reconfigure"):
@@ -309,28 +320,63 @@ def collect_block_scalar_body(fm_lines: list[str], desc_idx: int) -> list[str]:
     return out
 
 
+def _yaml_loaded_description(fm_lines: list[str]) -> str | None:
+    """Load the frontmatter with PyYAML and return the description it yields.
+
+    Returns None when PyYAML is not installed, the block fails to parse, or
+    the loaded description is not a string — callers then fall back to the
+    stdlib estimate.
+    """
+    if yaml is None:
+        return None
+    try:
+        data = yaml.safe_load("\n".join(fm_lines))
+    except yaml.YAMLError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    desc = data.get("description")
+    return desc if isinstance(desc, str) else None
+
+
 def loaded_description_length(
     value: str, fm_lines: list[str], desc_idx: int
 ) -> int:
-    """Approximate the char count of the description as YAML loads it.
+    """Char count of the description as YAML loads it.
 
     This is the length that counts against the render cap: what the loader
-    yields, not what sits in the file. Per scalar style:
+    yields, not what sits in the file. When PyYAML is installed the length is
+    measured on the actually-loaded value; otherwise it is estimated per
+    scalar style:
 
-      * folded block (`>` / `>-`): body lines join with a single space; a
-        blank line folds to a newline (counted as 1 char — within +-1 of true
-        folding, close enough for a budget check).
+      * folded block (`>` / `>-`): adjacent body lines join with a single
+        space; a run of k blank lines folds to exactly k newline chars,
+        replacing the join space (YAML folds the break before a blank away).
       * literal block (`|` / `|-`): body lines join with newlines.
       * quoted: the surrounding quotes are dropped (single-line heuristic,
         matching check_quoted_symmetry).
       * plain: the first line joins its continuation lines with single spaces.
     """
+    loaded = _yaml_loaded_description(fm_lines)
+    if loaded is not None:
+        return len(loaded)
     if value.startswith((">", "|")):
         body = collect_block_scalar_body(fm_lines, desc_idx)
-        joiner = "\n" if value.startswith("|") else " "
-        non_blank = [line for line in body if line]
-        blanks = len(body) - len(non_blank)
-        return len(joiner.join(non_blank)) + blanks
+        if value.startswith("|"):
+            return len("\n".join(body))
+        total = 0
+        pending_blanks = 0
+        first = True
+        for line in body:
+            if not line:
+                pending_blanks += 1
+                continue
+            if not first:
+                total += pending_blanks if pending_blanks else 1
+            total += len(line)
+            pending_blanks = 0
+            first = False
+        return total
     if value[:1] in ("'", '"'):
         body = value.rstrip()
         if len(body) >= 2 and body[-1] == body[0]:
