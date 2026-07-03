@@ -28,7 +28,8 @@ junction を用意する (= .claude/skills -> skills)。 本 runner が実行前
   python eval-behavioral.py --compare old.yaml new.yaml          # run set 同士の verdict diff
 
 exit code: 0 = 全 case pass (compare: majority 差分なし) / 1 = fail あり (compare: 差分あり)
-           / 2 = 前提条件エラー (smoke fail / junction 不可 / model・CLI 不一致の compare)
+           / 2 = 前提条件エラー (smoke fail / junction 不可 / compare: model・CLI・trials
+                 不一致、 NEW 側の case 欠落 = partial run)
 """
 
 from __future__ import annotations
@@ -226,6 +227,22 @@ def judge_case(trials: list[dict], expected: str) -> tuple[str, dict, str]:
 
 
 # --- run set ------------------------------------------------------------------
+def unique_out_path(path: Path) -> Path:
+    """既存 run set を silent overwrite しない出力先を返す。
+
+    同日に before/after workflow を回すと既定パス (= <skill>-YYYY-MM-DD.yaml) が
+    衝突し、 変更後 run が変更前 baseline を置換して --compare 用の OLD が消える。
+    存在時は -2, -3, ... の数値 suffix を付けて回避する。
+    """
+    if not path.exists():
+        return path
+    for n in range(2, 1000):
+        candidate = path.with_name(f"{path.stem}-{n}{path.suffix}")
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError(f"no unused suffix found for {path}")
+
+
 def run_set(args: argparse.Namespace) -> int:
     claude_exe = find_claude()
     version = cli_version(claude_exe)
@@ -312,8 +329,13 @@ def run_set(args: argparse.Namespace) -> int:
         "cases": results,
         "summary": {"pass": n_pass, "fail": n_fail, "total": len(results)},
     }
-    out = Path(args.out) if args.out else (
-        DEFAULT_OUT_DIR / f"{skill}-{_dt.date.today().isoformat()}.yaml")
+    if args.out:
+        out = Path(args.out)
+        if out.exists():
+            ec.eprint(f"WARNING: overwriting existing {out} (= 明示的な --out 指定)")
+    else:
+        out = unique_out_path(
+            DEFAULT_OUT_DIR / f"{skill}-{_dt.date.today().isoformat()}.yaml")
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w", encoding="utf-8") as fh:
         yaml.safe_dump(artifact, fh, allow_unicode=True, sort_keys=False,
@@ -327,12 +349,24 @@ def run_set(args: argparse.Namespace) -> int:
 def compare(path_a: Path, path_b: Path) -> int:
     a, b = ec.read_yaml(path_a), ec.read_yaml(path_b)
     ra, rb = a["run_set"], b["run_set"]
-    for key in ("model", "cli_version"):
+    # trials_per_case も互換性条件に含める: N=3 baseline と N=1 probe の比較は
+    # 単発試行比較と同じで noise と regression を分離できないため拒否する。
+    for key in ("model", "cli_version", "trials_per_case"):
         if ra.get(key) != rb.get(key):
             ec.eprint(f"ERROR: {key} mismatch ({ra.get(key)} vs {rb.get(key)}); "
                       "不一致の run set 同士の diff は評価に使えないため拒否する。")
             return 2
     index_a = {(c["source_file"], c["id"]): c for c in a["cases"]}
+    keys_b = {(c["source_file"], c["id"]) for c in b["cases"]}
+    # NEW 側に OLD の case が欠けている partial run (= --case / --no-holdout 等) を
+    # 「差分なし」 で通すと、 欠けた case が未評価のまま pass 扱いになるため拒否する。
+    missing = sorted(k for k in index_a if k not in keys_b)
+    if missing:
+        ec.eprint("ERROR: NEW run set is missing cases present in OLD; "
+                  "partial run は full baseline と比較できないため拒否する。")
+        for key in missing:
+            ec.eprint(f"  - {key}: OLD majority={index_a[key]['majority']}")
+        return 2
     diffs = []
     for c in b["cases"]:
         key = (c["source_file"], c["id"])
@@ -362,7 +396,8 @@ def main() -> int:
                    help=f"model を {MODEL_SONNET} にする (既定 {MODEL_DEFAULT})")
     p.add_argument("--budget-usd", type=float, default=1.0, help="trial あたりの --max-budget-usd")
     p.add_argument("--timeout", type=int, default=300, help="trial あたりの timeout 秒")
-    p.add_argument("--out", help="run set 記録の出力先 YAML")
+    p.add_argument("--out", help="run set 記録の出力先 YAML (= 既存でも上書きする明示指定。 "
+                   "未指定の既定パスは衝突時に -2, -3, ... suffix で回避)")
     p.add_argument("--compare", nargs=2, metavar=("OLD", "NEW"),
                    help="2 つの run set 記録を majority 単位で diff する")
     args = p.parse_args()

@@ -217,9 +217,12 @@ fan-out が baseline 欠落で push を塞ぐのを避けるため (= holdout/ �
 cd eval/scripts
 
 # 全 case (cases + holdout) を N=3 で実行し、 run set 記録を保存
+# (= 既定出力は ../behavioral-baseline/<skill>-<date>.yaml。 同日 2 回目以降は
+#    -2, -3, ... の suffix が付き、 既存 run set を上書きしない)
 python eval-behavioral.py --skill task-routing
 
-# 変更前後の run set を majority 単位で diff (= model / CLI version 不一致は拒否)
+# 変更前後の run set を majority 単位で diff
+# (= model / CLI version / trials_per_case 不一致、 NEW 側の case 欠落は exit 2 で拒否)
 python eval-behavioral.py --compare \
     ../behavioral-baseline/task-routing-2026-07-03.yaml \
     ../behavioral-baseline/task-routing-<after>.yaml
@@ -230,8 +233,12 @@ python eval-behavioral.py --skill task-routing --sonnet
 ```
 
 model は runner 内の定数で固定 (= 既定 `claude-haiku-4-5`、 opt-in `claude-sonnet-5`)。
-run set 記録には model id + CLI version + per-case verdict tally が入り、 これらが
-一致しない run set 同士の `--compare` は runner が拒否する。
+run set 記録には model id + CLI version + trials_per_case + per-case verdict tally が
+入り、 これらが一致しない run set 同士の `--compare` は runner が拒否する (= N=3
+baseline vs N=1 probe の比較は単発試行比較と同じため trials も互換性条件)。 NEW 側に
+OLD の case が欠けている partial run (= `--case` / `--no-holdout` の出力) も
+「差分なし」 で通さず exit 2 で拒否する。 runner 自体の compare / 出力パス回りは
+`test_eval_behavioral.py` の synthetic test (= claude 実行なし、 無課金) で検証できる。
 
 ### 実測コスト (= 2026-07-03 の probe run、 実測点)
 
