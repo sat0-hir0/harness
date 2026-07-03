@@ -146,6 +146,8 @@ chat 直起動の単発タスクは 「外側レイヤーなし」 で内側 ski
 
 `$intent-clarify` の判定基準: 「意図整理 / 観点出し / stress-test / 方針決め」 に該当するか。 6 軸 intent を確定し、 必要なら 6 lens (= architect / fullstack-engineer / qa-expert / security-auditor / performance-engineer / technical-writer) を並列起動して観点を集める。 確定 intent を `$task-routing` に渡す (= one-directional)。
 
+評価 / 監査 / レビュー型要求 (= 「評価して」 「audit X」) はどちらの入口の対象でもない。 read-only でレポートを成果物とし、 実装 verdict も意図整理も要らないため、 Lead が `qa-expert` + `architect` を直接 spawn する (= security 観点を含むなら security-auditor も併用)。
+
 ## 7. UAT パッケージの 9 要素 (= 外側レイヤーの仕様)
 
 backlog プロジェクト等で実装完了から人間 UAT に渡す際に生成する素材。 内側 skill chain は本 9 要素を直接生成しないが、 `$finish-task` の統合レポートが素材を提供する。 boundary skill (= 例: `$prepare-uat`) がそれを 9 要素フォーマットに整形する。
