@@ -9,8 +9,11 @@ pre-push:
       use_stdin: true
       run: python scripts/eval-gate.py
     frontmatter-lint:
-      # Reject a push whose skill / agent frontmatter `description:` would be
-      # silently truncated or fail to load. Scans every skill + agent file.
+      # Parse safety + length budget for skill / agent frontmatter
+      # `description:`. Rejects a push whose description would be silently
+      # truncated or fail to load (unsafe plain scalar), or whose loaded
+      # length reaches the ~1,535-char live render cap (warns over 1,400).
+      # Scans every skill + agent file.
       run: python scripts/check-frontmatter-yaml.py
     agent-ref-lint:
       # Fail the push when a skill/eval spawn context names an agent that has

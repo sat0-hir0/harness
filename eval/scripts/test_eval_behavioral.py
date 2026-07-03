@@ -148,6 +148,54 @@ class CompareTests(unittest.TestCase):
         self.assertIn("cli_version mismatch", proc.stderr)
 
 
+class VerdictRegexTests(unittest.TestCase):
+    """VERDICT_RE の抽出契約 (= backlog #108 の no-verdict-line 根本原因の再発防止)。
+
+    positive case は 2026-07-03 の probe run で観測された haiku の実出力形式
+    (= raw stream-json から採取) を含む。
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.rx = _load_runner_module().VERDICT_RE
+
+    def _match(self, text: str) -> str | None:
+        m = self.rx.search(text)
+        return m.group(1) if m else None
+
+    def test_plain(self):
+        self.assertEqual(self._match("判定: Lead-direct"), "Lead-direct")
+
+    def test_bold_label(self):
+        self.assertEqual(self._match("**判定**: delegate-single (S)"),
+                         "delegate-single")
+
+    def test_fullwidth_colon(self):
+        self.assertEqual(self._match("判定： delegate-slice"), "delegate-slice")
+
+    def test_backtick_code_span_around_verdict(self):
+        # 観測形式: **判定: `delegate-slice` (L)** (= 旧 regex の取りこぼし #1)
+        self.assertEqual(self._match("**判定: `delegate-slice` (L)**"),
+                         "delegate-slice")
+
+    def test_english_verdict_label(self):
+        # 観測形式: ## Verdict: **delegate-slice (L)** (= 旧 regex の取りこぼし #2)
+        self.assertEqual(self._match("## Verdict: **delegate-slice (L)**"),
+                         "delegate-slice")
+
+    def test_ytrace_code_span_line(self):
+        # Y-trace 全体が code span でも内側は plain 形式なので拾える
+        line = "**Y-trace**: `判定: delegate-single (XS) | ∵ file 確認: 1 file`"
+        self.assertEqual(self._match(line), "delegate-single")
+
+    def test_no_verdict_line_returns_none(self):
+        self.assertIsNone(self._match("skill は発火したが判定行を書かなかった出力"))
+
+    def test_label_without_colon_returns_none(self):
+        # 見出しだけの行 (= `## 判定`) は verdict token が続かない限り拾わない
+        self.assertIsNone(self._match("## 判定\nこのタスクは委譲が妥当です"))
+
+
 class UniqueOutPathTests(unittest.TestCase):
     """既定出力パスの same-day suffix (= 既存 run set を silent overwrite しない)。"""
 

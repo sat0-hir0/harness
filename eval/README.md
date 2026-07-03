@@ -230,6 +230,10 @@ python eval-behavioral.py --compare \
 # 境界 case だけ N=5 で深掘り / sonnet で深掘り
 python eval-behavioral.py --skill task-routing --case 2 --trials 5
 python eval-behavioral.py --skill task-routing --sonnet
+
+# no-verdict-line / trigger-fail の postmortem: 各 trial の raw stream-json を保存
+# (= fail した trial の実出力を再課金なしで検分できる。 DIR は commit しない)
+python eval-behavioral.py --skill task-routing --case 5 --trials 1 --save-raw /tmp/raw
 ```
 
 model は runner 内の定数で固定 (= 既定 `claude-haiku-4-5`、 opt-in `claude-sonnet-5`)。
@@ -253,6 +257,43 @@ OLD の case が欠けている partial run (= `--case` / `--no-holdout` の出�
 - 観測済みの noise: smoke で trigger-fail が 1 回発生 (= haiku が skill を呼ばず
   直答した)。 runner は smoke を上限 3 回まで再試行する。 case trial 側の
   trigger-fail は fail trial として tally に残る (= 多数決が noise を吸収する)
+
+### no-verdict-line の根本原因 (= 2026-07-03 調査、 backlog #108)
+
+2026-07-03 の run set で no-verdict-line が 24 trial 中 5 回 (= holdout#2 は 2/3 で
+majority fail) 出た。 raw stream-json を採取した probe (= 同一 input x 6 trial) で
+原因を確定した:
+
+- **発火失敗ではない**: 全 probe で Skill tool_use (task-routing) を観測。
+- **verdict 欠落でもない**: 全 probe の出力に verdict は明記されている。
+- **真因は抽出 regex の取りこぼし** (= extraction-fail)。 haiku の実出力は
+  1. `` **判定: `delegate-slice` (L)** `` (= verdict token を code span で装飾。 6 中 3)
+  2. `## Verdict: **delegate-slice (L)**` (= label が英語。 6 中 1)
+  の形を取ることがあり、 旧 regex (= `判定\**\s*[:：]\s*\**` のみ許容) はどちらも
+  拾えない。 それでも大半の trial が pass していたのは、 Y-trace 行
+  (= `` `判定: <verdict> | ∵ ...` `` の code span 内は plain 形式) が偶然 fallback に
+  なっていたため。 Y-trace 自体も省略されることがあり (6 中 1)、 「主判定行が装飾形式」
+  AND 「Y-trace 省略 / 装飾」 が重なった trial だけ no-verdict-line になる
+  (= 観測率 ~20% と整合)。
+
+対処は VERDICT_RE の superset 化 (= code span の backtick + 英語 `Verdict:` label を
+許容)。 旧 regex が match していた text では抽出結果は変わらない (= 採取済み raw 6 件の
+replay で確認、 verdict 差分なし)。 形式契約は `test_eval_behavioral.py` の
+`VerdictRegexTests` (= 観測形式を fixture 化) が固定する。 同日の baseline
+(`task-routing-2026-07-03.yaml`) の holdout#2 fail はこの測定 artifact であり、 修正後
+extractor での再取得分は `task-routing-2026-07-03-2.yaml` (= 以後の --compare の基準。
+holdout#2 は pass に転じ、 pass 7 / fail 1)。
+
+残存 noise の扱い: 修正後 run set でも no-verdict-line は 4/24 trial 残る (= 修正前
+5/24)。 該当 input の修正後 probe 12 本では再現せず (= 11 verdict / 1 trigger-fail、
+extraction-fail 0)、 恒常的な形式取りこぼしではなく haiku の出力揺れ
+(= 判定行自体の省略等) とみなす。 trigger-fail
+(= skill を呼ばず直答) と同じく多数決が吸収する前提で、 これ以上は regex を広げない
+(= false-positive 抽出のリスクの方が大きい)。 再調査が要る場合は `--save-raw DIR` で
+全 trial の raw stream-json を保存して fail した trial の実出力を直接見る
+(= 再課金なしで postmortem できる)。 唯一の fail (cases#5) は 1/1/1 の 3 値割れで、
+trigger-fail + no-verdict-line の noise 同時発生によるもの (= verdict 自体の regression
+ではない)。
 
 ## PR CI (= GitHub Actions での再実行)
 
