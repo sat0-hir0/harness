@@ -62,10 +62,17 @@ PINNED_CLI_VERSION = "2.1.195"       # 検証済み CLI version。 不一致は 
 
 VERDICTS = ("Lead-direct", "delegate-single", "delegate-slice")
 # 抽出規約: `判定:\s*(Lead-direct|delegate-single|delegate-slice)`。
-# markdown 太字 (= `**判定**:`) と全角コロンを許容する superset。 直後の size 表記や
-# `|` 以降のテキストは regex が自然に無視する。
+# markdown 太字 (= `**判定**:`) / 全角コロン / code span (= `判定: `delegate-slice``)
+# / 英語 label (= `Verdict:`) を許容する superset。 直後の size 表記や `|` 以降の
+# テキストは regex が自然に無視する。
+# code span と英語 label は 2026-07-03 の no-verdict-line 根本原因調査 (= backlog #108)
+# で観測された実出力形式: haiku は verdict token を backtick で装飾したり、 見出しを
+# `## Verdict: **delegate-slice (L)**` と英語で書くことがある。 旧 regex はどちらも
+# 取りこぼし、 Y-trace 行 (= plain な `判定: <verdict>` を含む) が同時に省略された
+# trial だけ no-verdict-line になっていた (= 発火失敗でも verdict 欠落でもない)。
 VERDICT_RE = re.compile(
-    r"判定\**\s*[:：]\s*\**\s*(Lead-direct|delegate-single|delegate-slice)"
+    r"(?:判定|[Vv]erdict)[*`]*\s*[:：]\s*[*`]*\s*"
+    r"(Lead-direct|delegate-single|delegate-slice)"
 )
 
 # tool scope: skill 発火に必要な Skill のみ許可し、 副作用系は明示 block する。
@@ -147,7 +154,11 @@ def load_case_file(path: Path, skill: str) -> list[dict]:
 
 # --- trial 実行 ---------------------------------------------------------------
 def run_trial(claude_exe: str, model: str, prompt: str, skill: str,
-              budget_usd: float, timeout_s: int) -> dict:
+              budget_usd: float, timeout_s: int,
+              raw_path: Path | None = None) -> dict:
+    """1 trial を実行して 3 値 state を返す。 raw_path 指定時は raw stream-json を保存
+    (= no-verdict-line / trigger-fail の postmortem 用。 #108 の根本原因調査で
+    「fail した trial の raw が残らず再課金で採取し直す」 手戻りが出たため)。"""
     cmd = [
         claude_exe, "-p", prompt,
         "--model", model,
@@ -168,6 +179,10 @@ def run_trial(claude_exe: str, model: str, prompt: str, skill: str,
     except subprocess.TimeoutExpired:
         return {"state": "error", "verdict": None, "cost_usd": None,
                 "duration_s": round(time.monotonic() - t0, 1), "detail": "timeout"}
+
+    if raw_path is not None:
+        raw_path.parent.mkdir(parents=True, exist_ok=True)
+        raw_path.write_text(proc.stdout, encoding="utf-8")
 
     triggered = False
     texts: list[str] = []
@@ -270,13 +285,16 @@ def run_set(args: argparse.Namespace) -> int:
     # smoke assertion: 先頭 case で Skill tool_use を 1 回観測するまで trial を数えない。
     # 発火自体に観測 noise がある (= haiku が稀に skill を呼ばず直答する) ため、
     # 上限 3 回まで再試行する。 3 連続 trigger-fail は環境問題 (junction / auth) とみなす。
+    raw_dir = Path(args.save_raw) if args.save_raw else None
+
     smoke_prompt = targets[0][1]["input"]
     print(f"smoke: model={model} cli={version} prompt={smoke_prompt[:60]!r}")
     total_cost = 0.0
     smoke = None
     for attempt in range(1, 4):
         smoke = run_trial(claude_exe, model, smoke_prompt, skill,
-                          args.budget_usd, args.timeout)
+                          args.budget_usd, args.timeout,
+                          raw_dir / f"smoke-{attempt}.jsonl" if raw_dir else None)
         total_cost += smoke.get("cost_usd") or 0.0
         if smoke["state"] not in ("trigger-fail", "error"):
             break
@@ -294,8 +312,10 @@ def run_set(args: argparse.Namespace) -> int:
         expected = case["expected_output"]["verdict"]
         trials = []
         for i in range(args.trials):
+            raw_path = (raw_dir / f"{src}-{case['id']}-trial{i + 1}.jsonl"
+                        if raw_dir else None)
             t = run_trial(claude_exe, model, case["input"], skill,
-                          args.budget_usd, args.timeout)
+                          args.budget_usd, args.timeout, raw_path)
             total_cost += t.get("cost_usd") or 0.0
             trials.append(t)
             print(f"  {src}#{case['id']} trial {i + 1}/{args.trials}: "
@@ -398,6 +418,9 @@ def main() -> int:
     p.add_argument("--timeout", type=int, default=300, help="trial あたりの timeout 秒")
     p.add_argument("--out", help="run set 記録の出力先 YAML (= 既存でも上書きする明示指定。 "
                    "未指定の既定パスは衝突時に -2, -3, ... suffix で回避)")
+    p.add_argument("--save-raw", metavar="DIR",
+                   help="各 trial の raw stream-json を DIR に保存 (= no-verdict-line / "
+                   "trigger-fail の postmortem 用 debug flag。 commit しない)")
     p.add_argument("--compare", nargs=2, metavar=("OLD", "NEW"),
                    help="2 つの run set 記録を majority 単位で diff する")
     args = p.parse_args()
