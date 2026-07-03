@@ -62,10 +62,17 @@ PINNED_CLI_VERSION = "2.1.195"       # 検証済み CLI version。 不一致は 
 
 VERDICTS = ("Lead-direct", "delegate-single", "delegate-slice")
 # 抽出規約: `判定:\s*(Lead-direct|delegate-single|delegate-slice)`。
-# markdown 太字 (= `**判定**:`) と全角コロンを許容する superset。 直後の size 表記や
-# `|` 以降のテキストは regex が自然に無視する。
+# markdown 太字 (= `**判定**:`) / 全角コロン / code span (= `判定: `delegate-slice``)
+# / 英語 label (= `Verdict:`) を許容する superset。 直後の size 表記や `|` 以降の
+# テキストは regex が自然に無視する。
+# code span と英語 label は 2026-07-03 の no-verdict-line 根本原因調査 (= backlog #108)
+# で観測された実出力形式: haiku は verdict token を backtick で装飾したり、 見出しを
+# `## Verdict: **delegate-slice (L)**` と英語で書くことがある。 旧 regex はどちらも
+# 取りこぼし、 Y-trace 行 (= plain な `判定: <verdict>` を含む) が同時に省略された
+# trial だけ no-verdict-line になっていた (= 発火失敗でも verdict 欠落でもない)。
 VERDICT_RE = re.compile(
-    r"判定\**\s*[:：]\s*\**\s*(Lead-direct|delegate-single|delegate-slice)"
+    r"(?:判定|[Vv]erdict)[*`]*\s*[:：]\s*[*`]*\s*"
+    r"(Lead-direct|delegate-single|delegate-slice)"
 )
 
 # tool scope: skill 発火に必要な Skill のみ許可し、 副作用系は明示 block する。
