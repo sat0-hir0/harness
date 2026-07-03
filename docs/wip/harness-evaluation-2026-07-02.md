@@ -80,6 +80,8 @@ skill description が途中で切れる原因は長さ制限ではなく、**unq
 
 ### 3.6 DRY_RUN drift (= chezmoi apply が地雷)
 
+**2026-07-03 追記**: DRY_RUN drift は解消済みを確認 (= deployed / source 両方 `DRY_RUN=true` で一致)。 残っていた実 drift は deployed 側の frontmatter 二重化のみで、 chezmoi apply + runtime prompt 同期で解消した (= Issue #84)。
+
 completion-check-routine の deployed 版は DRY_RUN=false、chezmoi source (= dotconfig) は true。`chezmoi apply` を実行すると本番 gate が silent に dry-run へ戻る。
 
 ### 3.7 skill 間の重複と SoT 分裂
@@ -99,7 +101,7 @@ completion-check-routine の deployed 版は DRY_RUN=false、chezmoi source (= d
 - **UAT 滞留の内訳** (= 評価時点): Awaiting UAT 8 件 = stale 1 (= #3、closed のまま滞留) + trivial 3 (= #69/#70/#79) + 重い判断 1 (= #65 merge 判断) + その他。human の一括 pass 1 回で列の半分が消える構成だった
 - Ready=0 / Inbox=37 — triage と UAT の両端で human が制約
 - **Completion Check は実装 AI の自己申告を証跡として受理** (= completion-check-routine SKILL.md:160-166 の項目 (d))。独立証跡が要求されていない
-- completion-check cron の登録状態は reader 間で矛盾 (= 登録済み説 / 手動運用説) が未解決 — 要 1 コマンド確認
+- completion-check cron の登録状態は reader 間で矛盾 (= 登録済み説 / 手動運用説) が未解決 — 要 1 コマンド確認 (= 2026-07-03 追記: scheduled-tasks MCP で確認、 登録済み・enabled=true・cron `7-59/15 * * * *` を確定。 「登録済み説」が正、 Issue #84)
 - 良い証跡: Completion Check が実 defect (= #65 の未 push commit) を検出した実績、#3 の失敗教訓が limn epic #71 に明示的制約として artifact 化、running/long-running label が #72 の stall を自動検出
 
 ## 5. 外部比較
@@ -205,6 +207,6 @@ eval・観測性 judge は「#68 の答えは settled」、context 経済性 jud
 
 ## 10. 評価の限界
 
-- reader 間矛盾 1 件が未解決のまま (= completion-check cron の登録状態、§4)
+- reader 間矛盾 1 件が未解決のまま (= completion-check cron の登録状態、§4) (= 2026-07-03 追記: 確定済み、 §4 参照)
 - 外部比較の「業界水準」は Web 調査 (= 35 ソース) に基づく snapshot であり、一次検証はしていない
 - 本評価自体も AI 生成物。「確定」以外の項目 (= スコアの絶対値、業界比較の位置づけ) は判断材料であって証明ではない
