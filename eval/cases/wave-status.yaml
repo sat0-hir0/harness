@@ -10,6 +10,8 @@ cases:
     source: "skills/wave-status/SKILL.md Phase 1 / Final Report (init)"
     expected_output:
       action: init
+      # path は <vendor-home>/state/ の per-vendor 自己判定 (= SKILL.md File location)。
+      # eval は Claude Code 文脈で走るため ~/.claude/ 解決値を期待値とする。
       creates_file: "~/.claude/state/slice-sidebar.md"
       initial_wave_status: todo
       reports_next_wave: yes

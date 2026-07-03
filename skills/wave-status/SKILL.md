@@ -25,14 +25,16 @@ description: >-
 ## File location
 
 ```
-~/.claude/state/slice-<feature>.md   ← default
+<vendor-home>/state/slice-<feature>.md   ← default (= 例: Claude Code なら ~/.claude/state/slice-<feature>.md)
 ```
 
 `<feature>` は短い kebab-case のスラッグ (= 例: `sidebar`、`ime-jp`、`ai-completion`)。Lead が `init` 時にスラッグを決める。
 
+**`<vendor-home>` の per-vendor 自己判定**: agent は自分が動いている vendor の config home を選ぶ (= Claude Code なら `~/.claude/`、 Codex なら `~/.codex/`、 Cursor なら `~/.cursor/`、 Gemini / antigravity なら `~/.gemini/`、 universal なら `~/.agents/`)。 vendor 判定は agent 自身の自己認識 (= 起動 binary 名 / cwd / 環境変数) から行う (= `$finish-task` の scripts path 自己判定と同じパターン)。 本 skill 内の `<vendor-home>` は全てこの解決結果を指す。
+
 ホストプロジェクト独自のセッション記録規約がある場合 (= 例: Limn の `.skillshare/records/waves/`)、Lead はそちらにファイルを置いてもよい。 ただし **どちらか 1 つを選んだら最後まで一貫させる**: 同じ feature について global と project の両方にファイルを置くと SSOT が壊れる。
 
-**SSOT 規約 (= 重要)**: `init` 時に決めたパスを、 ファイル自体の frontmatter (= 下記 `path: ...`) に記録する。 以降の `mark` / `show` はその path を辿る。 これで複数 session 跨ぎの drift を防ぐ。
+**SSOT 規約 (= 重要)**: `init` 時に決めたパスを、 ファイル自体の frontmatter (= 下記 `path: ...`) に記録する。 以降の `mark` / `show` はその path を辿る。 これで複数 session 跨ぎの drift を防ぐ。 vendor を跨いで続きを扱う場合 (= 例: Claude Code で init した feature を Codex session で mark) は、 自 vendor の `state/` に file が無ければ他 vendor home (= 上記一覧) の `state/slice-<slug>.md` を順に探し、 見つけた file をそのまま使う (= init した vendor の file が SSOT、 複製 / 移動しない)。
 
 ## File format
 
@@ -40,6 +42,7 @@ description: >-
 ---
 feature: <slug>
 created: <YYYY-MM-DD>
+path: <init 時に解決した絶対パス>   # SSOT 規約参照
 plan_source: <スライス計画の場所>   # optional
 ---
 
@@ -78,13 +81,13 @@ plan_source: <スライス計画の場所>   # optional
 - **Decide**: フィーチャーのスラッグを決める。デフォルトは最初の名詞句を正規化したもの。
 
 ### Step 1-2: Create file
-- **Output**: `~/.claude/state/slice-<slug>.md` を書き出す。front matter と wave ごとに 1 行のチェックボックス行 (すべて `todo`) を含める。
+- **Output**: `<vendor-home>/state/slice-<slug>.md` を書き出す (= `<vendor-home>` は File location の per-vendor 自己判定で解決)。front matter と wave ごとに 1 行のチェックボックス行 (すべて `todo`) を含める。
 - **Stop on**: ファイルが既に存在する場合。ユーザーに知らせ、re-init (= 上書き) かマージかを選ばせる。
 
 ## Phase 2: Mark
 
 ### Step 2-1: Locate file
-- **Read**: `~/.claude/state/slice-<slug>.md` を読む。存在しない場合は明確なエラーを出す。
+- **Read**: `<vendor-home>/state/slice-<slug>.md` を読む (= 自 vendor に無ければ他 vendor home を順に探す、 File location の SSOT 規約参照)。存在しない場合は明確なエラーを出す。
 
 ### Step 2-2: Update one wave
 - **Output**: コマンドに従い、対象 wave の記号とラベルを変更する (= done / in-progress / blocked / dropped)。`Log` セクションに日付と変更内容を追記する。
@@ -155,7 +158,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "🔄 Plan 更新
 ## Phase 3: Read
 
 ### Step 3-1: Locate file
-- **Read**: `~/.claude/state/slice-<slug>.md` を読む。
+- **Read**: `<vendor-home>/state/slice-<slug>.md` を読む (= lookup 順は Step 2-1 と同じ)。
 
 ### Step 3-2: Summarise
 - **Output**: wave ごとに 1 行、記号 + ラベル + ステータスを順に出力する。ADR セクションと Flag セクションはそのまま転記する。
@@ -180,7 +183,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "🔄 Plan 更新
 
 ## Helper
 
-この skill はオーケストレーションのみで、スクリプトは不要。状態の操作は plain markdown の編集であり、Lead がこの skill を呼び出して実施する。パスの規約 (`~/.claude/state/slice-<slug>.md`) はファイルの場所を口頭で確認することで担保される。
+この skill はオーケストレーションのみで、スクリプトは不要。状態の操作は plain markdown の編集であり、Lead がこの skill を呼び出して実施する。パスの規約 (`<vendor-home>/state/slice-<slug>.md`) はファイルの場所を口頭で確認することで担保される。
 
 将来スクリプトによる実装が必要になった場合 (= `scripts/wave-status.sh init|mark|read`)、この skill のコントラクトを変えることなく追加できる。
 
@@ -188,9 +191,11 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "🔄 Plan 更新
 
 ### init
 ```
-wave-status init: ~/.claude/state/slice-<slug>.md created with N waves (= all todo).
+wave-status init: <vendor-home>/state/slice-<slug>.md created with N waves (= all todo).
 next: Wave 1 — <one-line goal>
 ```
+
+`<vendor-home>` は解決済みの実 path で出力する (= 例: Claude Code なら `~/.claude/state/slice-sidebar.md`)。
 
 ### mark
 ```
