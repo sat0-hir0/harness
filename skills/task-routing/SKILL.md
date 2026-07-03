@@ -17,8 +17,7 @@ description: >-
   the #1 source of misrouted work (= Lead-direct on tasks that should have been delegated, missed ADR
   triggers, public-behaviour changes slipped past review). **OUTPUT CONTRACT**: every verdict MUST be
   accompanied by a Y-trace 1-liner (= 採用根拠 + 棄却した代替 + 受け入れる trade-off) so the user can audit the
-  judgement without re-deriving it. Format: `判定: <verdict> | ∵ <why this>, 棄却: <what & why not>,
-  accepting: <trade-off>`.
+  judgement without re-deriving it..
 ---
 
 # Task routing
