@@ -53,7 +53,18 @@ def extract_description(content):
     単一行 (= `description: ...`) と 複数行 folded/literal scalar
     (= `description: >` / `description: |` + インデント継続行) の両方に対応。
     標準ライブラリのみで動かすため簡易 parser を自前実装する。
+    PyYAML が import できる環境では yaml.safe_load を優先する (= skill listing が実際に
+    load する値と一致させる。 unquoted scalar の ` #` comment 切断等を正確に反映)。
     """
+    try:
+        import yaml  # 任意依存 (= eval/ が既に要求)。 無ければ簡易 parser へ fallback
+        parts = content.split("---")
+        if len(parts) >= 3:
+            data = yaml.safe_load(parts[1])
+            if isinstance(data, dict) and isinstance(data.get("description"), str):
+                return " ".join(data["description"].split())
+    except Exception:
+        pass
     lines = content.split("\n")
     if not lines or lines[0].strip() != "---":
         return ""
@@ -86,7 +97,12 @@ def extract_description(content):
             return " ".join(x for x in collected if x).strip()
         # 単一行: 前後の quote を剥がす
         if len(rest) >= 2 and rest[0] == rest[-1] and rest[0] in ("'", '"'):
-            rest = rest[1:-1]
+            return rest[1:-1].strip()
+        # unquoted plain scalar: YAML は ` #` 以降を comment として捨てるため、
+        # 実際に load される長さに合わせて同位置で切断する
+        cut = rest.find(" #")
+        if cut != -1:
+            rest = rest[:cut]
         return rest.strip()
     return ""
 
