@@ -6,6 +6,8 @@
 name: eval-gate
 
 on:
+  push:
+    branches: [main]
   pull_request:
     paths:
       # Superset of the local gate's watch set: eval/** and scripts/*.py are

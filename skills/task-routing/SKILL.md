@@ -18,8 +18,7 @@ description: >-
   triggers, public-behaviour changes slipped past review). **OUTPUT CONTRACT**: every verdict MUST be
   accompanied by a Y-trace 1-liner (= 採用根拠 + 棄却した代替 + 受け入れる trade-off) so the user can audit the
   judgement without re-deriving it. Format: `判定: <verdict> | ∵ <why this>, 棄却: <what & why not>,
-  accepting: <trade-off>`. Skip Y-trace only for self-evident Lead-direct (= 1 file typo, mechanical
-  rename) where context already proves the verdict; default is add.
+  accepting: <trade-off>`.
 ---
 
 # Task routing
@@ -94,7 +93,7 @@ Step 1-1 NO  AND  Step 1-2 YES  AND  Step 1-3 YES   → Lead-direct
 - **XS / S / M** → `delegate-single` (= architect + fullstack-engineer + qa-expert + security-auditor 並列の 1 ラウンド)
 - **L / XL** → `delegate-slice`
 
-具体的なファイル数レンジ (= XS=1 / S=2 / M=3-4 / L=5-7 / XL=8+) は `$task-slicing` の 「Size テーブル」 を参照。
+具体的なファイル数レンジは `$task-slicing` の 「Size テーブル」 を参照 (= 数値はそちらが SoT、 本 skill に再掲しない)。
 
 ### Step 2-2: Verdict
 
@@ -184,7 +183,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "📋 着手 Plan (軽量�
 
 ## Agent chain
 - architect → fullstack-engineer → qa-expert + security-auditor → \$finish-task
-- (= XS / docs-only のサイズ免除適用時は 「architect → fullstack-engineer → Lead spot-check (= 1 行記録) → \$finish-task」)
+- (= サイズ免除 (= XS、 または docs-only かつ S 以下) 適用時は 「architect → fullstack-engineer → Lead spot-check (= 1 行記録) → \$finish-task」)
 - (= Lead-direct の場合は 「Lead 直接実装 (= sub-agent なし)」)
 
 ## ADR
@@ -238,7 +237,7 @@ verdict が決まったら、 **実装着手前** に project の git 規約を�
 - **Never** L+ タスクで `delegate-single` を invoke しない。 1 ラウンド委譲は大規模 PR と context あふれを生む。
 - **Must** 3 質問のいずれかに自信を持って答えられないときは surface。 委譲の摩擦を避けるために黙って 「Lead-direct」 と仮定しない。
 - **Must** ファイル数指標は advisory のみと扱う。 定性 gate が判断。
-- **Never** S 以上の `delegate-single` / `delegate-slice` の各 wave で `qa-expert` / `security-auditor` の spawn を省略しない。 **autonomous mode でも省略不可**。 「軽微」 「時間ない」 「自分で見たから OK」 はすべて却下理由 (= 自己レビュー bias で品質落ちる主因)。 例外は **size class で判定するサイズ免除のみ** (= XS または docs-only の `delegate-single` は Lead spot-check + 1 行記録で代替可、 Step 3-2 参照。 size 境界は `$task-slicing` の Size テーブルが SoT)。 `delegate-slice` の wave に免除はない。
+- **Never** S 以上の `delegate-single` / `delegate-slice` の各 wave で `qa-expert` / `security-auditor` の spawn を省略しない。 **autonomous mode でも省略不可**。 「軽微」 「時間ない」 「自分で見たから OK」 はすべて却下理由 (= 自己レビュー bias で品質落ちる主因)。 例外は **size class で判定するサイズ免除のみ** (= XS、 または docs-only かつ S 以下の `delegate-single` は Lead spot-check + 1 行記録で代替可、 docs-only でも M 以上は対象外、 Step 3-2 参照。 size 境界は `$task-slicing` の Size テーブルが SoT)。 `delegate-slice` の wave に免除はない。
 - **Never** `delegate-slice` で ADR を同一 turn で Proposed から Accepted に昇格させない。 起票 = この turn、 昇格 = 別 turn (= user 確認後)。
 - **Never** project 規約が branch を要求するときに main 直 commit しない。 multi-file / 新 feature / 公開挙動変更なら **必ず feature branch**。
 - **Never** 技術 doc / ADR / コード comment / panic msg / `#[ignore]` reason / config comment / skill 例 / 設計案 / report / commit msg / PR body に **マイルストーン / Phase / Wave 名 (= M0-M5, Phase 2, Wave 9-D, Sprint N)** / **将来時制 (= "will be", "later wave", "deferred to ...", "is cut when X")** / **拡張予定 / future-proofing 表現 (= "for future X", "extensible to ...", "may add Y later", "(and any future palette extension)")** を書かない。 詳細は本セクション直下の 「将来予定を書かない」 を参照。 reviewer 系 agent (= qa-expert / performance-engineer / security-auditor / architect / technical-writer) は本ルール違反を **指摘対象** として扱う。
