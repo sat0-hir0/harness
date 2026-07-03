@@ -254,6 +254,26 @@ OLD の case が欠けている partial run (= `--case` / `--no-holdout` の出�
   直答した)。 runner は smoke を上限 3 回まで再試行する。 case trial 側の
   trigger-fail は fail trial として tally に残る (= 多数決が noise を吸収する)
 
+## PR CI (= GitHub Actions での再実行)
+
+pre-push gate は 1 台の Windows 機のローカル hook にしか存在しないため、 同等の検査を
+`.github/workflows/eval-gate.yml` が PR ごとに ubuntu-latest で再実行する
+(= backlog #91)。 中身は決定的 check のみで、 **LLM / API key / Ollama を一切使わない**
+(= test-strategy doc §7 の trigger 規約: hook / CI 段は決定的 + 数秒のみ。 挙動 eval
+は on-demand 専用で、 CI に置くと API key secret が必要になるため置かない)。
+
+| CI job | 実行内容 | local 対応物 |
+|---|---|---|
+| lints | `check-frontmatter-yaml.py` / `lint-agent-refs.py` / `check-future-plans.py --base origin/<PR base>` | lefthook pre-push の frontmatter-lint / agent-ref-lint + $finish-task 経由の future-plans check |
+| fixture-sync | `eval-regression.py --skill all` | lefthook pre-push の eval-gate (= `scripts/eval-gate.py`) |
+
+local の `eval-gate.py` は push range の変更ファイルから対象 skill を絞るが、 CI は
+常に `--skill all` を流す。 理由は 2 つ: (1) 全 30 fixture の構造 diff は数秒で終わる
+ため絞る利点がない、 (2) `eval-gate.py` の対象 mapping は `skills/*/SKILL.md` と
+`agents/*.md` にしか反応しないため、 `eval/cases/` や `eval/baseline/` だけを編集した
+push は local gate を素通りする — CI の `--skill all` がこの穴を塞ぐ。
+`--judge` (= Ollama semantic 比較、 §judge) は CI では使わない。
+
 ## 依存
 
 - Python 3.11

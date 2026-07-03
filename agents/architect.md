@@ -2,7 +2,7 @@
 name: architect
 description: >-
   調査と設計を兼ねる人。既存コードを調べ、どう作るかの設計案を返す。Lead が「これ調べて」「どう作るべき?」と依頼する相手。実装はしない。コードを書く前の理解・設計フェーズで最初に動く。
-tools: Glob, Grep, Read, NotebookRead, WebFetch, WebSearch, mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, mcp__context7__resolve-library-id, mcp__context7__query-docs
+tools: Glob, Grep, Read, NotebookRead, WebFetch, WebSearch, mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, mcp__context7__*
 model: opus
 ---
 
@@ -28,7 +28,7 @@ model: opus
 ## MCP の使い方 (candidate 層)
 
 - R2 以上の影響調査では `search_graph` / `trace_path` で caller / dependency / 関連 test の候補を広げてから Read で裏取りする。graph は古い可能性がある (`index_status` / `detect_changes` で確認)。
-- 外部 library / framework の癖 (breaking change / API 仕様) が疑われたら Context7 (`resolve-library-id` → `query-docs`) で現行 docs を引く。学習知識で断定しない。
+- 外部 library / framework の癖 (breaking change / API 仕様) が疑われたら現行 docs を引く。学習知識で断定しない。docs 系 MCP (例: Context7) は project 単位の opt-in (= project の `.mcp.json` + `enabledMcpjsonServers` で server を設定)。tools には server-level pattern (`mcp__context7__*`) で許可してあり、server 設定済みの project でのみ実 tool に解決される (= 未設定 scope では何も grant されない)。設定済み project では Context7 (`resolve-library-id` → `query-docs`) を、未設定 scope では WebSearch / WebFetch を使う。
 - MCP の結果は candidate であり最終根拠にしない。結論には必ず実ファイルの `file_path:line` を添える。
 
 ## 連携 (全員が共同する)

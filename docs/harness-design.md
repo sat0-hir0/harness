@@ -26,20 +26,28 @@
 
 「何を持つか」 (= agent / state / tool) とは独立した 「何で守るか」 の次元。
 
-| 層 | 役割 | 起源 |
-|---|---|---|
-| 1. 役割分離 | 設計 / 実装 / 検証 / UAT 準備を別 agent | Sense-Plan-Act、 Behavior Tree |
-| 2. Back pressure | lint / typecheck / test green まで前進不可 | CI |
-| 3. Out-of-process supervisor | 停止条件を外部 hook で grep block | MAPE-K |
-| 4. Watchdog (in-band) | wave 毎の budget cap、 反復上限 | ROS software watchdog |
-| 5. E-stop (out-of-band) | 破壊的操作 denylist、 手動 kill | ROS Nav2 Safety Node |
-| 6. Circuit breaker | 同一 task 連続失敗で escalation | Fowler |
-| 7. Saga | 各 step に compensating action を up-front 定義 | Richardson |
-| 8. Error budget | 失敗予算を pre-allocate、 枯渇で diagnostic 強制 | Google SRE |
-| 9. Exponential backoff + jitter | rate limit / 5xx 時の retry 戦略 | AWS Builders' Library |
-| 10. Durable execution | tool call を append-only event log、 resume 時 replay | Temporal |
-| 11. Hermetic / content-addressed | input closure hash で agent step を memoize | Bazel / Nix |
-| 12. UAT 引き渡し品質 | 人間 UAT に必要な素材を AI が揃える | 本ハーネス固有 |
+実装状態の凡例 (= 分類は grep + ファイル実在確認で裏取り。 根拠は [`wip/harness-evaluation-2026-07-02.md`](wip/harness-evaluation-2026-07-02.md) §3.8):
+
+- **implemented**: 「役割」 欄が要求する形の機構が実在する (= 実 script / hook / agent 定義 / 運用中 boundary skill として確認できる)
+- **prompt-text-only**: 原則 / 指示が skill 本文に存在するが、 強制する機構 (= hook / cap / code) は無い (= LLM が従わない場合に破れる)
+- **not-built**: code にも skill 本文にも実体が無い (= 該当語がこの表以外に存在しない)
+
+| 層 | 役割 | 起源 | 実装状態 |
+|---|---|---|---|
+| 1. 役割分離 | 設計 / 実装 / 検証 / UAT 準備を別 agent | Sense-Plan-Act、 Behavior Tree | implemented (= `agents/*.md` 6 種、 frontmatter `tools:` 制限は platform が強制) |
+| 2. Back pressure | lint / typecheck / test green まで前進不可 | CI | prompt-text-only (= typecheck / test を green まで強制する gate は無く、 qa-expert / `$finish-task` の本文指示のみ。 `lefthook.yml` pre-push の 3 lint (= fixture-sync / frontmatter / agent-ref) は実在するが repo 自身の doc 整合 lint であり、 「役割」 欄が要求する test back pressure ではない) |
+| 3. Out-of-process supervisor | 停止条件を外部 hook で grep block | MAPE-K | prompt-text-only (= 原則は skill 本文と Completion Check routine にあるが、 grep block hook は無い) |
+| 4. Watchdog (in-band) | wave 毎の budget cap、 反復上限 | ROS software watchdog | prompt-text-only (= Stop conditions 4 件は本文指示のみ、 budget cap / 反復上限の code は無い) |
+| 5. E-stop (out-of-band) | 破壊的操作 denylist、 手動 kill | ROS Nav2 Safety Node | not-built (= settings の deny は secret Read のみ、 破壊的操作 denylist は無い) |
+| 6. Circuit breaker | 同一 task 連続失敗で escalation | Fowler | prompt-text-only (= 「検証 2 連続失敗 → surface」 は skill 本文指示のみ) |
+| 7. Saga | 各 step に compensating action を up-front 定義 | Richardson | not-built |
+| 8. Error budget | 失敗予算を pre-allocate、 枯渇で diagnostic 強制 | Google SRE | not-built |
+| 9. Exponential backoff + jitter | rate limit / 5xx 時の retry 戦略 | AWS Builders' Library | not-built (= harness 側 retry code 無し、 platform 任せ) |
+| 10. Durable execution | tool call を append-only event log、 resume 時 replay | Temporal | not-built (= wave-status の Log は進捗記録であり tool call event log ではない) |
+| 11. Hermetic / content-addressed | input closure hash で agent step を memoize | Bazel / Nix | not-built |
+| 12. UAT 引き渡し品質 | 人間 UAT に必要な素材を AI が揃える | 本ハーネス固有 | implemented (= `$finish-task` + boundary skill (`$prepare-uat`) が 9 要素を実運用で生成) |
+
+> **読み方**: implemented は 12 層中 2 層のみ (= 1 / 12)。 5 / 7 / 8 / 9 / 10 / 11 の 6 層は該当語がこの表以外に存在しない (= 紙の防御層)。 この表を 「12 層で守られている」 と読まない。 組織 rollout 等でこのスタックを引用する際は、 実装状態列まで含めて引用する。
 
 ## 4. システム構成
 
