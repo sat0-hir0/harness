@@ -20,12 +20,18 @@ Usage
     python scripts/build-plugin.py           # build dist/claude-plugin/
     python scripts/build-plugin.py --zip     # also write dist/harness-plugin-<version>.zip
     python scripts/build-plugin.py --out DIR # build into DIR instead of dist/claude-plugin/
+    python scripts/build-plugin.py --out DIR --force  # overwrite DIR even without build marker
+
+Safety: an existing --out dir is deleted only when it is empty or carries the
+`.claude-plugin/plugin.json` marker of a previous build. Anything else (e.g.
+`--out .` by mistake) aborts with exit 2; pass --force to overwrite anyway.
+The repo root and its ancestors are never deleted, even with --force.
 
 Exit codes
 ----------
     0   build succeeded and validated
     1   validation failure (missing SKILL.md, empty inputs, bad manifest)
-    2   invocation error (missing VERSION, bad version string)
+    2   invocation error (missing VERSION, bad version string, refused --out deletion)
 """
 
 from __future__ import annotations
@@ -145,17 +151,52 @@ def print_tree(root: Path) -> None:
         print(f"{indent}{rel.name}{suffix}")
 
 
+def clean_out_dir(plugin_root: Path, force: bool) -> None:
+    """Remove a previous build output; refuse to delete anything else.
+
+    `--out DIR` accepts arbitrary paths, so an unconditional rmtree would let a
+    typo (`--out .`, `--out ..`) wipe a checkout. Deletion is allowed only when
+    the target is clearly disposable: an empty dir, or one carrying the
+    `.claude-plugin/plugin.json` marker written by a previous build. Everything
+    else aborts unless --force; the repo root / its ancestors abort always,
+    because the build reads from the repo after this deletion.
+    """
+    if not plugin_root.exists():
+        return
+    if plugin_root == REPO_ROOT or plugin_root in REPO_ROOT.parents:
+        print(f"error: --out {plugin_root} contains the repo itself; refusing to delete", file=sys.stderr)
+        sys.exit(2)
+    if not plugin_root.is_dir():
+        print(f"error: {plugin_root} exists and is not a directory", file=sys.stderr)
+        sys.exit(2)
+    is_empty = next(plugin_root.iterdir(), None) is None
+    is_prior_build = (plugin_root / ".claude-plugin" / "plugin.json").is_file()
+    if not (is_empty or is_prior_build or force):
+        print(
+            f"error: {plugin_root} exists and lacks the previous-build marker "
+            "(.claude-plugin/plugin.json); refusing to delete it. "
+            "Pass --force to overwrite anyway.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    shutil.rmtree(plugin_root)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build the Claude Code plugin artifact.")
     parser.add_argument("--out", metavar="DIR", help="Output dir (default: dist/claude-plugin).")
     parser.add_argument("--zip", action="store_true", help="Also write a versioned zip next to the output dir.")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Delete an existing --out dir even if it lacks the previous-build marker.",
+    )
     args = parser.parse_args()
 
     version = read_version()
     plugin_root = Path(args.out).resolve() if args.out else REPO_ROOT / "dist" / "claude-plugin"
 
-    if plugin_root.exists():
-        shutil.rmtree(plugin_root)
+    clean_out_dir(plugin_root, args.force)
     (plugin_root / ".claude-plugin").mkdir(parents=True)
 
     manifest = build_manifest(version)
