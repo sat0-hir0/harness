@@ -4,5 +4,8 @@ __pycache__/
 # eval snapshot は再生成可能な派生物 (= baseline/ は commit して基準を残す)
 eval/snapshots/
 
+# L2 behavioral eval が作る project-scope junction (= .claude/skills -> skills)。
+# 実行時派生物なので commit しない (詳細: eval/README.md の L2 節)
+.claude/
 # plugin build 成果物 (= scripts/build-plugin.py で再生成可能)
 dist/

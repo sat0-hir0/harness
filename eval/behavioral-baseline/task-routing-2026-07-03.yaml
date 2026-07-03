@@ -1,0 +1,121 @@
+run_set:
+  skill: task-routing
+  date: '2026-07-03'
+  model: claude-haiku-4-5
+  cli_version: 2.1.195
+  trials_per_case: 3
+  smoke: pass
+  total_cost_usd: 2.7365
+  note: cost は claude CLI の total_cost_usd 集計 (= client 側推計、 課金実測ではない)
+cases:
+- source_file: cases
+  id: 1
+  input: docs/setup.md のインストール手順が古いので現行コマンドに直して (対象 1 file、公開挙動なし、markdownlint / lychee
+    で検証可)
+  expected_verdict: Lead-direct
+  trials:
+  - Lead-direct
+  - Lead-direct
+  - Lead-direct
+  tally:
+    Lead-direct: 3
+  majority: Lead-direct
+  result: pass
+- source_file: cases
+  id: 2
+  input: limn-core の utils.rs に Vec::tail() ヘルパーを追加して (対象 1 file、同 file 内の既存 inline
+    test に追記、公開 API 変更なし、cargo test で検証可、既存 head() と同型)
+  expected_verdict: Lead-direct
+  trials:
+  - no-verdict-line
+  - Lead-direct
+  - Lead-direct
+  tally:
+    no-verdict-line: 1
+    Lead-direct: 2
+  majority: Lead-direct
+  result: pass
+- source_file: cases
+  id: 3
+  input: Alfred みたいなコマンドパレットを足して (新 modal + 新 keybinding で公開挙動あり、UI 層と provider 層を跨いで
+    6 files 前後、fuzzy match lib の選定など設計判断が複数)
+  expected_verdict: delegate-slice
+  trials:
+  - delegate-slice
+  - delegate-slice
+  - delegate-slice
+  tally:
+    delegate-slice: 3
+  majority: delegate-slice
+  result: pass
+- source_file: cases
+  id: 4
+  input: main.rs の .expect() 3 箇所を ? に置き換えて (対象 1 file、既存の Result 型 error 伝播パターンをそのまま適用、公開挙動なし、cargo
+    test で検証可)
+  expected_verdict: Lead-direct
+  trials:
+  - Lead-direct
+  - Lead-direct
+  - no-verdict-line
+  tally:
+    Lead-direct: 2
+    no-verdict-line: 1
+  majority: Lead-direct
+  result: pass
+- source_file: cases
+  id: 5
+  input: GPL containment policy の新 ADR を起票して (対象 1-2 files = ADR 本体、公開挙動なし、format
+    は adr-consistency check で部分検証、policy の中身は設計判断そのもの)
+  expected_verdict: delegate-single
+  trials:
+  - no-verdict-line
+  - delegate-single
+  - delegate-single
+  tally:
+    no-verdict-line: 1
+    delegate-single: 2
+  majority: delegate-single
+  result: pass
+- source_file: holdout
+  id: 1
+  input: 設定画面に設定の JSON export ボタンを追加して (対象 3 files = UI + handler + test、新ボタンで公開挙動あり、既存の
+    import 実装と対になる素直な設計)
+  expected_verdict: delegate-single
+  trials:
+  - delegate-single
+  - delegate-single
+  - delegate-single
+  tally:
+    delegate-single: 3
+  majority: delegate-single
+  result: pass
+- source_file: holdout
+  id: 2
+  input: アプリにローカル通知システムを新規で入れて (schedule 管理 / 通知 UI / 永続化 / 設定画面を跨いで 8 files 前後、通知トリガー設計など設計判断が複数、公開挙動あり)
+  expected_verdict: delegate-slice
+  trials:
+  - no-verdict-line
+  - no-verdict-line
+  - delegate-slice
+  tally:
+    no-verdict-line: 2
+    delegate-slice: 1
+  majority: no-verdict-line
+  result: fail
+- source_file: holdout
+  id: 3
+  input: parser.rs の match 分岐に既存 pattern と同型の variant 処理を 1 つ足して (対象 1 file、cargo
+    test に同型 case の test が既にある、公開挙動なし、原因確定済み)
+  expected_verdict: Lead-direct
+  trials:
+  - Lead-direct
+  - Lead-direct
+  - Lead-direct
+  tally:
+    Lead-direct: 3
+  majority: Lead-direct
+  result: pass
+summary:
+  pass: 7
+  fail: 1
+  total: 8

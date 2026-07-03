@@ -2,13 +2,18 @@
 # 抽出元: skills/task-routing/SKILL.md の Worked examples (Example 1-5)
 # 各 case は「代表発話 (input) → 期待 verdict / qualitative_gate / scope_estimate」を保持する。
 # expected_output は task-routing の Final Report スキーマの主要 field を写す。
+#
+# input 規約 (= docs/wip/test-strategy-2026-07-02.md §4): 発話に file 数 / 規模の
+# 文脈を必ず含める。 Lead-direct case も escape valve 圏 (= README typo / 1 行
+# rename 級) を避け、 Y-trace が必須になる程度の実質を持たせる。 この規約に合わせて
+# input を書き換え済み (= 期待 verdict は Worked example から変えていない)。
 skill: task-routing
 cases:
   - id: 1
-    input: "README L42 の typo を直して"
+    input: "docs/setup.md のインストール手順が古いので現行コマンドに直して (対象 1 file、公開挙動なし、markdownlint / lychee で検証可)"
     expected_trigger: task-routing
     expected_no_trigger: [task-slicing, wave-status]
-    source: "skills/task-routing/SKILL.md Example 1"
+    source: "skills/task-routing/SKILL.md Example 1 (input は test-strategy §4 の規約準拠に書き換え、期待 verdict 不変)"
     expected_output:
       qualitative_gate:
         public_behaviour_changed: no
@@ -19,12 +24,13 @@ cases:
       verdict: Lead-direct
 
   - id: 2
-    input: "limn-core utils に Vec::tail() ヘルパー追加"
+    input: "limn-core の utils.rs に Vec::tail() ヘルパーを追加して (対象 1 file、同 file 内の既存 inline test に追記、公開 API 変更なし、cargo test で検証可、既存 head() と同型)"
     expected_trigger: task-routing
     expected_no_trigger: [task-slicing, wave-status]
-    source: "skills/task-routing/SKILL.md Example 2"
+    source: "skills/task-routing/SKILL.md Example 2 (input は test-strategy §4 の規約準拠に書き換え、期待 verdict 不変)"
     # 開始前推定 1 ファイルなら Lead-direct、 test 編集見込みなら delegate-single。
     # snapshot は「1 ファイル前提の Lead-direct」を基準値に固定する (= or は宣言禁止のため一方に確定)。
+    # input 側で「同 file 内の inline test」と明示して 1 file 前提を固定した。
     expected_output:
       qualitative_gate:
         public_behaviour_changed: no
@@ -35,10 +41,10 @@ cases:
       verdict: Lead-direct
 
   - id: 3
-    input: "Alfred みたいなコマンドパレットを足して"
+    input: "Alfred みたいなコマンドパレットを足して (新 modal + 新 keybinding で公開挙動あり、UI 層と provider 層を跨いで 6 files 前後、fuzzy match lib の選定など設計判断が複数)"
     expected_trigger: task-routing
     expected_no_trigger: []
-    source: "skills/task-routing/SKILL.md Example 3"
+    source: "skills/task-routing/SKILL.md Example 3 (input は test-strategy §4 の規約準拠に書き換え、期待 verdict 不変)"
     expected_output:
       qualitative_gate:
         public_behaviour_changed: yes
@@ -50,10 +56,10 @@ cases:
       hand_off: task-slicing
 
   - id: 4
-    input: "main.rs の .expect() を ? に置き換え"
+    input: "main.rs の .expect() 3 箇所を ? に置き換えて (対象 1 file、既存の Result 型 error 伝播パターンをそのまま適用、公開挙動なし、cargo test で検証可)"
     expected_trigger: task-routing
     expected_no_trigger: [task-slicing, wave-status]
-    source: "skills/task-routing/SKILL.md Example 4"
+    source: "skills/task-routing/SKILL.md Example 4 (input は test-strategy §4 の規約準拠に書き換え、期待 verdict 不変)"
     expected_output:
       qualitative_gate:
         public_behaviour_changed: no
@@ -64,10 +70,10 @@ cases:
       verdict: Lead-direct
 
   - id: 5
-    input: "GPL containment policy の新 ADR"
+    input: "GPL containment policy の新 ADR を起票して (対象 1-2 files = ADR 本体、公開挙動なし、format は adr-consistency check で部分検証、policy の中身は設計判断そのもの)"
     expected_trigger: task-routing
     expected_no_trigger: [task-slicing, wave-status]
-    source: "skills/task-routing/SKILL.md Example 5"
+    source: "skills/task-routing/SKILL.md Example 5 (input は test-strategy §4 の規約準拠に書き換え、期待 verdict 不変)"
     expected_output:
       qualitative_gate:
         public_behaviour_changed: no

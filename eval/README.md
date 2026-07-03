@@ -28,15 +28,20 @@ eval/
 │   ├─ wave-status.yaml
 │   ├─ finish-task.yaml
 │   └─ commit-message.yaml
+├─ holdout/                    # L2 behavioral eval 専用の held-out case (= fixture-sync 対象外)
+│   └─ task-routing.yaml
 ├─ baseline/                   # 合意された正しい期待 output (= git commit する基準)
 │   └─ <skill>-<id>.baseline.yaml
+├─ behavioral-baseline/        # L2 run set の記録 (= model id / CLI version / verdict tally)
+│   └─ <skill>-<date>.yaml
 ├─ snapshots/                  # eval-run.py が生成する派生物 (= .gitignore、 commit しない)
 │   └─ <skill>-<id>.snapshot.yaml
 ├─ scripts/
 │   ├─ eval_common.py          # 共通ヘルパー (= case ローダ / judge クライアント / I/O)
 │   ├─ eval-run.py             # case 実行 → snapshot 保存 + 期待/実 output 表示
 │   ├─ eval-baseline.py        # 現状を baseline として固定
-│   └─ eval-regression.py      # baseline vs 現在の case を diff
+│   ├─ eval-regression.py      # baseline vs 現在の case を diff
+│   └─ eval-behavioral.py      # L2 verdict-contract runner (= claude -p の薄い wrapper)
 └─ README.md
 ```
 
@@ -155,6 +160,99 @@ python scripts/eval-gate.py --range A..B       # 手動で range を検証 (= dr
 
 pre-push hook は git が push plan (`<local_ref> <local_sha> <remote_ref> <remote_sha>`)
 を stdin で渡すのを読む。 手動検証では stdin を空にして `--range` を使う。
+
+## L2 behavioral eval (= eval-behavioral.py、 verdict-contract test)
+
+`docs/wip/test-strategy-2026-07-02.md` §4/§5 の実体。 fixture-sync lint (= 上記) が
+「fixture 同士の同期」 しか見ないのに対し、 こちらは **task-routing を headless で
+実際に実行** し、 判定行から抽出した verdict (= `Lead-direct` / `delegate-single` /
+`delegate-slice`) を assert する。
+
+### これは何であり、 何でないか
+
+- **である**: task-routing の verdict 3 値だけを見る回帰 check。 SKILL.md の編集で
+  verdict 境界が動いたかを、 変更前後の run set の **多数決 verdict 単位の diff** で検出する。
+- **でない**: Y-trace 文言の品質評価 / 他 skill の挙動 test / multi-turn workflow の
+  実走 / CI gate。 hook 段には置かない (= LLM 実行 + 数十分は push の前提にしない)。
+
+### 実行タイミング (= trigger discipline)
+
+**on-demand のみ**。 具体的には:
+
+1. **verdict 境界に触れる SKILL.md 編集の前後** (= baseline-before-modification 規約)。
+   変更前に現行版で 1 run set を取得してから編集し、 変更後の run set と
+   `--compare` する。 単発試行同士の比較は禁止 (= noise と regression を分離できない)。
+2. 実運用で誤判定 / UAT 差し戻しが出たとき (= failure-sourced に case を足して再実行)。
+
+pre-push / CI には接続しない。 判定基準 (= どの編集が baseline 必須か) は
+test-strategy §9 の対応表を参照。
+
+### 前提条件 (= project-scope junction)
+
+runner は `--setting-sources project` で個人 `~/.claude` (= user scope の skill /
+CLAUDE.md) を排除する。 ただし task-routing は skillshare 配布で user scope にしか
+存在せず、 harness repo に `.claude/` は無い。 そのままでは skill が読み込まれず
+全 case が trigger-fail するため、 runner が実行前に repo 直下へ junction を自動作成する:
+
+```
+<repo>/.claude/skills  ->  <repo>/skills   (Windows junction / POSIX symlink)
+```
+
+repo の編集中 SKILL.md がそのまま読まれるので、 変更前後の比較がそのまま成立する。
+`.claude/` は実行時派生物として `.gitignore` 済み (= commit しない)。 run set 冒頭の
+smoke assertion (= 先頭 case で Skill tool_use event を 1 回観測) を通過するまで
+trial は数えない。
+
+### held-out case (= eval/holdout/)
+
+train case (= `cases/`) への過適合を検出するため、 Worked examples 由来でない case を
+`holdout/` に置く。 `cases/` の外に置くのは、 fixture-sync gate の `--skill all`
+fan-out が baseline 欠落で push を塞ぐのを避けるため (= holdout/ は L1 対象外)。
+**SKILL.md 編集 session のコンテキストに入れない**。 読んでしまった case は train 側へ
+降格し、 failure-sourced に補充する。
+
+### 使い方
+
+```bash
+cd eval/scripts
+
+# 全 case (cases + holdout) を N=3 で実行し、 run set 記録を保存
+# (= 既定出力は ../behavioral-baseline/<skill>-<date>.yaml。 同日 2 回目以降は
+#    -2, -3, ... の suffix が付き、 既存 run set を上書きしない)
+python eval-behavioral.py --skill task-routing
+
+# 変更前後の run set を majority 単位で diff
+# (= model / CLI version / trials_per_case 不一致、 NEW 側の case 欠落は exit 2 で拒否)
+python eval-behavioral.py --compare \
+    ../behavioral-baseline/task-routing-2026-07-03.yaml \
+    ../behavioral-baseline/task-routing-<after>.yaml
+
+# 境界 case だけ N=5 で深掘り / sonnet で深掘り
+python eval-behavioral.py --skill task-routing --case 2 --trials 5
+python eval-behavioral.py --skill task-routing --sonnet
+```
+
+model は runner 内の定数で固定 (= 既定 `claude-haiku-4-5`、 opt-in `claude-sonnet-5`)。
+run set 記録には model id + CLI version + trials_per_case + per-case verdict tally が
+入り、 これらが一致しない run set 同士の `--compare` は runner が拒否する (= N=3
+baseline vs N=1 probe の比較は単発試行比較と同じため trials も互換性条件)。 NEW 側に
+OLD の case が欠けている partial run (= `--case` / `--no-holdout` の出力) も
+「差分なし」 で通さず exit 2 で拒否する。 runner 自体の compare / 出力パス回りは
+`test_eval_behavioral.py` の synthetic test (= claude 実行なし、 無課金) で検証できる。
+
+### 実測コスト (= 2026-07-03 の probe run、 実測点)
+
+- model `claude-haiku-4-5` / CLI 2.1.195 / 1 run あたり実測 60-106 秒・$0.17-0.22
+  (= test-strategy §8 の仮置き 20-40s / $0.05-0.10 より重い。 skill 発火 + Y-trace
+  生成まで含むため)。 実測 artifact:
+  `eval/behavioral-baseline/task-routing-2026-07-03-probe.yaml`
+  (= smoke 1 + case 1 x N=1 の縮小 run set、 合計 $0.39)
+- ここから外挿すると、 標準構成 8 case (= train 5 + held-out 3) x N=3 + smoke 1
+  = 25 run は逐次で **約 $4-6 / 40-50 分**。 `total_cost_usd` は CLI の client 側
+  推計であり課金実測ではない
+- 観測済みの noise: smoke で trigger-fail が 1 回発生 (= haiku が skill を呼ばず
+  直答した)。 runner は smoke を上限 3 回まで再試行する。 case trial 側の
+  trigger-fail は fail trial として tally に残る (= 多数決が noise を吸収する)
 
 ## PR CI (= GitHub Actions での再実行)
 
