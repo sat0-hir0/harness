@@ -116,6 +116,8 @@ ALLOWLIST_TOKENS = {
     # generic adjectives / nouns that happen to be kebab-case
     "read-only",
     "hand-off",
+    "docs-only",
+    "spot-check",
     "stress-test",
     "pure-info",
     "already-specified",
