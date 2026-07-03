@@ -1,0 +1,25 @@
+run_set:
+  skill: task-routing
+  date: '2026-07-03'
+  model: claude-haiku-4-5
+  cli_version: 2.1.195
+  trials_per_case: 1
+  smoke: pass
+  total_cost_usd: 0.3866
+  note: cost は claude CLI の total_cost_usd 集計 (= client 側推計、 課金実測ではない)
+cases:
+- source_file: cases
+  id: 1
+  input: docs/setup.md のインストール手順が古いので現行コマンドに直して (対象 1 file、公開挙動なし、markdownlint / lychee
+    で検証可)
+  expected_verdict: Lead-direct
+  trials:
+  - Lead-direct
+  tally:
+    Lead-direct: 1
+  majority: Lead-direct
+  result: pass
+summary:
+  pass: 1
+  fail: 0
+  total: 1

@@ -1,0 +1,36 @@
+# held-out cases for the task-routing skill (= L2 behavioral eval 専用)
+#
+# 規約 (= docs/wip/test-strategy-2026-07-02.md §4 / §6):
+# - eval/cases/ の外に置く: eval_common の CASES_DIR.glob が cases/ 配下を skill
+#   として全部拾うため、 cases/ 内に置くと fixture-sync gate (--skill all fan-out)
+#   が baseline 欠落で push を塞ぐ。 holdout/ は fixture-sync lint の対象外。
+# - SKILL.md の Worked examples から複製しない (= description 最適化の過適合検出用)。
+# - SKILL.md 編集 session のコンテキストに入れない。 編集中に読んでしまった case は
+#   train 側 (= eval/cases/) へ降格し、 failure-sourced に補充する。
+# - input 規約は train 側と同じ: 発話に file 数 / 規模の文脈を必ず含める。
+#   Lead-direct case も escape valve 圏を避けて Y-trace を強制する。
+skill: task-routing
+cases:
+  - id: 1
+    input: "設定画面に設定の JSON export ボタンを追加して (対象 3 files = UI + handler + test、新ボタンで公開挙動あり、既存の import 実装と対になる素直な設計)"
+    expected_trigger: task-routing
+    expected_no_trigger: [task-slicing, wave-status]
+    source: "held-out (Worked examples 由来ではない新規作成)"
+    expected_output:
+      verdict: delegate-single
+
+  - id: 2
+    input: "アプリにローカル通知システムを新規で入れて (schedule 管理 / 通知 UI / 永続化 / 設定画面を跨いで 8 files 前後、通知トリガー設計など設計判断が複数、公開挙動あり)"
+    expected_trigger: task-routing
+    expected_no_trigger: []
+    source: "held-out (Worked examples 由来ではない新規作成)"
+    expected_output:
+      verdict: delegate-slice
+
+  - id: 3
+    input: "parser.rs の match 分岐に既存 pattern と同型の variant 処理を 1 つ足して (対象 1 file、cargo test に同型 case の test が既にある、公開挙動なし、原因確定済み)"
+    expected_trigger: task-routing
+    expected_no_trigger: [task-slicing, wave-status]
+    source: "held-out (Worked examples 由来ではない新規作成。 Lead-direct だが escape valve 圏外 = Y-trace 必須の実質を持つ)"
+    expected_output:
+      verdict: Lead-direct

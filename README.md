@@ -44,6 +44,65 @@ cd ~/code/harness && git pull
 skillshare sync --all
 ```
 
+## Claude Code plugin build
+
+skillshare 配布 (= 個人環境の cross-vendor 同期層) とは別に、 Claude Code 公式の
+plugin 形式の成果物を repo からビルドできる。 組織が install / pin / update を
+公式機構に乗せて配布するための出力層で、 skillshare 配布と併存する。
+
+```bash
+python scripts/build-plugin.py          # dist/claude-plugin/ を生成 (= gitignored)
+python scripts/build-plugin.py --zip    # 加えて dist/harness-plugin-<version>.zip を生成
+```
+
+生成物の構造 (= [公式 plugin schema](https://code.claude.com/docs/en/plugins-reference) 準拠):
+
+```
+dist/claude-plugin/
+├── .claude-plugin/plugin.json   # manifest (= name / version / description / author)
+├── skills/<name>/SKILL.md       # repo の skills/ をそのまま同梱
+└── agents/<name>.md             # repo の agents/ をそのまま同梱
+```
+
+### version の出どころ
+
+repo root の `VERSION` ファイルが唯一の出どころ。 `git describe` でなく file にした理由:
+
+- repo に tag が無いため `git describe` はそもそも失敗する
+- zip 展開先や CI cache など git metadata の無い場所でも同じ version でビルドが再現する
+- version bump が 1 行 diff としてレビューに乗る (= doc 規律と同じ扱い)
+
+### 組織での install (= git-hosted marketplace 経由)
+
+組織で配布する場合は、 ビルド成果物 (= `dist/claude-plugin/` の中身) を配布用 git repo
+(例: `acme-corp/claude-plugins` の `plugins/harness/`) に置き、 その repo root の
+`.claude-plugin/marketplace.json` で catalog 化する:
+
+```json
+{
+  "name": "acme-plugins",
+  "owner": { "name": "Acme" },
+  "plugins": [
+    {
+      "name": "harness",
+      "source": "./plugins/harness",
+      "description": "AI development harness (skills + agents)"
+    }
+  ]
+}
+```
+
+利用者側は Claude Code 内で 2 コマンド:
+
+```shell
+/plugin marketplace add acme-corp/claude-plugins
+/plugin install harness@acme-plugins
+```
+
+private repo でも git 認証が通れば同じ手順で install できる。 pin は marketplace の
+plugin entry 側で `ref` (= branch / tag) か `sha` (= commit) を指定する。 本 repo 自体は
+marketplace を持たず、 成果物の生成までを担う。
+
 ## docs
 
 | doc | 用途 |
@@ -63,6 +122,11 @@ lefthook install     # .git/hooks/pre-push を生成
 
 `SKILL.md` の変更はその skill の、 `agents/*.md` の変更は全 skill の regression を
 起動する。 詳細は [`eval/README.md`](eval/README.md) を参照。
+
+同等の検査は PR でも走る (= `.github/workflows/eval-gate.yml`、 ubuntu-latest)。
+lint 3 種 + fixture-sync (`eval-regression.py --skill all`) の決定的 check のみで、
+LLM / API key は使わない。 CI と local gate の対応表は
+[`eval/README.md`](eval/README.md) の「PR CI」節を参照。
 
 ## related repos
 

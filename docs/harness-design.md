@@ -26,20 +26,28 @@
 
 「何を持つか」 (= agent / state / tool) とは独立した 「何で守るか」 の次元。
 
-| 層 | 役割 | 起源 |
-|---|---|---|
-| 1. 役割分離 | 設計 / 実装 / 検証 / UAT 準備を別 agent | Sense-Plan-Act、 Behavior Tree |
-| 2. Back pressure | lint / typecheck / test green まで前進不可 | CI |
-| 3. Out-of-process supervisor | 停止条件を外部 hook で grep block | MAPE-K |
-| 4. Watchdog (in-band) | wave 毎の budget cap、 反復上限 | ROS software watchdog |
-| 5. E-stop (out-of-band) | 破壊的操作 denylist、 手動 kill | ROS Nav2 Safety Node |
-| 6. Circuit breaker | 同一 task 連続失敗で escalation | Fowler |
-| 7. Saga | 各 step に compensating action を up-front 定義 | Richardson |
-| 8. Error budget | 失敗予算を pre-allocate、 枯渇で diagnostic 強制 | Google SRE |
-| 9. Exponential backoff + jitter | rate limit / 5xx 時の retry 戦略 | AWS Builders' Library |
-| 10. Durable execution | tool call を append-only event log、 resume 時 replay | Temporal |
-| 11. Hermetic / content-addressed | input closure hash で agent step を memoize | Bazel / Nix |
-| 12. UAT 引き渡し品質 | 人間 UAT に必要な素材を AI が揃える | 本ハーネス固有 |
+実装状態の凡例 (= 分類は grep + ファイル実在確認で裏取り。 根拠は [`wip/harness-evaluation-2026-07-02.md`](wip/harness-evaluation-2026-07-02.md) §3.8):
+
+- **implemented**: 「役割」 欄が要求する形の機構が実在する (= 実 script / hook / agent 定義 / 運用中 boundary skill として確認できる)
+- **prompt-text-only**: 原則 / 指示が skill 本文に存在するが、 強制する機構 (= hook / cap / code) は無い (= LLM が従わない場合に破れる)
+- **not-built**: code にも skill 本文にも実体が無い (= 該当語がこの表以外に存在しない)
+
+| 層 | 役割 | 起源 | 実装状態 |
+|---|---|---|---|
+| 1. 役割分離 | 設計 / 実装 / 検証 / UAT 準備を別 agent | Sense-Plan-Act、 Behavior Tree | implemented (= `agents/*.md` 6 種、 frontmatter `tools:` 制限は platform が強制) |
+| 2. Back pressure | lint / typecheck / test green まで前進不可 | CI | prompt-text-only (= typecheck / test を green まで強制する gate は無く、 qa-expert / `$finish-task` の本文指示のみ。 `lefthook.yml` pre-push の 3 lint (= fixture-sync / frontmatter / agent-ref) は実在するが repo 自身の doc 整合 lint であり、 「役割」 欄が要求する test back pressure ではない) |
+| 3. Out-of-process supervisor | 停止条件を外部 hook で grep block | MAPE-K | prompt-text-only (= 原則は skill 本文と Completion Check routine にあるが、 grep block hook は無い) |
+| 4. Watchdog (in-band) | wave 毎の budget cap、 反復上限 | ROS software watchdog | prompt-text-only (= Stop conditions 4 件は本文指示のみ、 budget cap / 反復上限の code は無い) |
+| 5. E-stop (out-of-band) | 破壊的操作 denylist、 手動 kill | ROS Nav2 Safety Node | not-built (= settings の deny は secret Read のみ、 破壊的操作 denylist は無い) |
+| 6. Circuit breaker | 同一 task 連続失敗で escalation | Fowler | prompt-text-only (= 「検証 2 連続失敗 → surface」 は skill 本文指示のみ) |
+| 7. Saga | 各 step に compensating action を up-front 定義 | Richardson | not-built |
+| 8. Error budget | 失敗予算を pre-allocate、 枯渇で diagnostic 強制 | Google SRE | not-built |
+| 9. Exponential backoff + jitter | rate limit / 5xx 時の retry 戦略 | AWS Builders' Library | not-built (= harness 側 retry code 無し、 platform 任せ) |
+| 10. Durable execution | tool call を append-only event log、 resume 時 replay | Temporal | not-built (= wave-status の Log は進捗記録であり tool call event log ではない) |
+| 11. Hermetic / content-addressed | input closure hash で agent step を memoize | Bazel / Nix | not-built |
+| 12. UAT 引き渡し品質 | 人間 UAT に必要な素材を AI が揃える | 本ハーネス固有 | implemented (= `$finish-task` + boundary skill (`$prepare-uat`) が 9 要素を実運用で生成) |
+
+> **読み方**: implemented は 12 層中 2 層のみ (= 1 / 12)。 5 / 7 / 8 / 9 / 10 / 11 の 6 層は該当語がこの表以外に存在しない (= 紙の防御層)。 この表を 「12 層で守られている」 と読まない。 組織 rollout 等でこのスタックを引用する際は、 実装状態列まで含めて引用する。
 
 ## 4. システム構成
 
@@ -138,6 +146,8 @@ chat 直起動の単発タスクは 「外側レイヤーなし」 で内側 ski
 
 `$intent-clarify` の判定基準: 「意図整理 / 観点出し / stress-test / 方針決め」 に該当するか。 6 軸 intent を確定し、 必要なら 6 lens (= architect / fullstack-engineer / qa-expert / security-auditor / performance-engineer / technical-writer) を並列起動して観点を集める。 確定 intent を `$task-routing` に渡す (= one-directional)。
 
+評価 / 監査 / レビュー型要求 (= 「評価して」 「audit X」) はどちらの入口の対象でもない。 read-only でレポートを成果物とし、 実装 verdict も意図整理も要らないため、 Lead が `qa-expert` + `architect` を直接 spawn する (= security 観点を含むなら security-auditor も併用)。
+
 ## 7. UAT パッケージの 9 要素 (= 外側レイヤーの仕様)
 
 backlog プロジェクト等で実装完了から人間 UAT に渡す際に生成する素材。 内側 skill chain は本 9 要素を直接生成しないが、 `$finish-task` の統合レポートが素材を提供する。 boundary skill (= 例: `$prepare-uat`) がそれを 9 要素フォーマットに整形する。
@@ -182,6 +192,7 @@ boundary skill (= 例: `$prepare-uat`) は UAT パッケージに **両方の手
 | `running` | 着手フラグ / 排他ロック memo (= optimistic locking) | boundary skill が claim 時 | boundary skill が離脱時 |
 | `long-running` | 6h+ 滞留警告 | heartbeat が自動付与 | しない (= 過去事実として残す) |
 | `needs-human` | 最初から AI 着手対象外 (= 静的判定) | user 明示 | user 明示 |
+| `needs-fix` | 人間 UAT fail の差し戻し記録 (= Ready 差し戻しと同時に付与、 詳細は §17) | UAT fail 時に人間 | 再実装成功時にその session、 または人間 |
 
 `running` の race detection: boundary skill が pick 前に `running` の有無を確認し、 既にあれば後発として abort (= board を一切触らず降りる)。 PRE==0 を 2 session が同時に見る稀な同時起動では両者が進む可能性があるが、 ラベル付与 + status 遷移は冪等に収束し、 session 開始コメントが 2 件付くだけで board に残留物は出ない。
 
@@ -391,9 +402,19 @@ surface 直後の chat に Lead が以下の 1 行 log を必ず出す (= 履歴
 
 unmerged なまま Done column に置かれた card は不整合である。 §9 の heartbeat が拾う stuck 判定 (= `running` + `long-running` の同居) とは別軸の異常であり、 「Done なのに branch が残っている」 状態は stale branch として扱う。 stale branch は、 該当 Issue の card が Done にあるにもかかわらず未 merge の branch が存在する状態を指す。
 
+## 17. 差し戻しプロトコル (= needs-fix + issue 本文への必須 deliverable 追記)
+
+> §16 と同じく末尾追記 (= §1〜§16 の連番を動かさない)。
+
+人間 UAT が fail した要求は、 `needs-fix` label (= §9) を付与し、 fail 理由を Issue コメントに残し、 status を Ready に差し戻す (= §13 の bounce と同じ着地、 worktree は残す)。 label を外すのは **再実装 session が成功した時にその session 自身、 または人間** (= 成功の自己申告は §13 の Checker が裏取りする)。
+
+**fail コメントだけでは再実装 session に消費されない (= 実証済み)**。 backlog#82 では `needs-fix` label + fail コメントのみの差し戻しに対し、 再実装 session が同一 fail を 2 連続で再現した (= コメントは読み飛ばされる)。 **必須 deliverable を Issue 本文に追記する方式へ切替後**、 backlog#82 は 3 回目で収束、 backlog#86 は 1 発で収束した (= 本文は再 pick 時に必ず読まれる)。
+
+したがって差し戻しは、 fail 理由コメントに **加えて**、 Issue 本文へ 「**差し戻し: 必須 deliverable**」 セクションを追記することを必須とする。 内容は (1) 再実装が満たすべき deliverable の列挙、 (2) 各 deliverable の受け入れ確認 (= acceptance check、 再実装 session が自己検証できる形)。 コメントは経緯の証跡、 本文追記は次 session への確実な入力、 と役割を分ける。
+
 ## 18. 階層 Issue 構造 (= Epic + sub-issue、 外側レイヤーの仕様)
 
-> §16 と同じく末尾追記 (= 既存節の連番を動かさない)。 §17 は並行追記中の別節に割当済のため欠番。
+> §16 と同じく末尾追記 (= 既存節の連番を動かさない)。
 
 backlog harness は GitHub Sub-issues (= parent ↔ child) を **計画 / 実装** のレイヤー分離に使う。 概念:
 

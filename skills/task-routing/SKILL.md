@@ -9,7 +9,11 @@ description: >-
   「実装して」「直して」「追加して」「入れて」「対応して」「セットアップ」「調べて」「足して」「動かして」「リファクタ」, English phrasings like "add X", "fix
   X", "set up X", "implement X", "wire X", "handle X", and any mention of file paths, function names,
   or build / test commands. SKIP for pure-info questions ("what is X?", "explain Y") with zero file
-  writes / shell, AND for consult / ideation requests (use $intent-clarify instead). Skipping this is
+  writes / shell, for consult / ideation requests (use $intent-clarify instead), AND for read-only
+  assess / audit / review requests ("評価して", "監査して", "レビューして", "assess this", "audit X",
+  "review X for Y") — these produce a report with zero file writes and route directly to qa-expert +
+  architect (+ security-auditor when security is in scope), not through this skill's verdict gate.
+  Skipping this is
   the #1 source of misrouted work (= Lead-direct on tasks that should have been delegated, missed ADR
   triggers, public-behaviour changes slipped past review). **OUTPUT CONTRACT**: every verdict MUST be
   accompanied by a Y-trace 1-liner (= 採用根拠 + 棄却した代替 + 受け入れる trade-off) so the user can audit the
@@ -26,6 +30,8 @@ description: >-
 - 具体的には: コード / docs / 外部状態に触れるすべて。
 
 純粋に情報を求められているだけ (= ファイル書き込みなし、 1 回の read だけ) ならスキップ。
+
+評価 / 監査 / レビュー型要求 (= 「評価して」 「監査して」 「レビューして」 「assess this」 「audit X」) もスキップ対象。 これらは複数ファイルを構造的に読みレポートを成果物とするが、 code / docs / state を書き換えない (= read-only)。 Lead が `qa-expert` を基本に据えて直接 spawn し (= 敵対的検証が assess の成果物のため)、 `architect` を設計 / 影響範囲の観点で併走させる (= security 観点を含むなら `security-auditor` も並列追加)。 read-only 調査 → レポートとして進める。 verdict gate (= Lead-direct / delegate-single / delegate-slice) は 「何かを実装 / 変更する」 前提の分岐であり、 assess 型には適用しない。
 
 ## Why this skill exists
 
@@ -113,8 +119,9 @@ Step 1-1 NO  AND  Step 1-2 YES  AND  Step 1-3 YES   → Lead-direct
 
 - `Lead-direct`: 実装に進む。
 - `delegate-single`: `architect` (= read-only 調査 + 設計) → `fullstack-engineer` (= 実装) → `qa-expert` (= 敵対的レビュー 兼 typecheck/test) + `security-auditor` (= 敵対的レビュー) を並列 spawn。 Lead は監督、 **ファイル編集しない**。
-  - **必須**: 実装後に `qa-expert` + `security-auditor` を **必ず並列 spawn** する。 Lead が直接実装してレビュー / 検証を兼ねる代替は **不可** (= 自己レビューは敵対的視点を欠く、 spawn 省略は単独責任で品質落ちる主因)。
-  - 「軽微だから」 「すぐ済むから」 で省略しない。 spawn 自体を skip するのは Lead-direct verdict のときだけ。
+  - **必須 (= S 以上)**: 実装後に `qa-expert` + `security-auditor` を **必ず並列 spawn** する。 Lead が直接実装してレビュー / 検証を兼ねる代替は **不可** (= 自己レビューは敵対的視点を欠く、 spawn 省略は単独責任で品質落ちる主因)。
+  - **サイズ免除 (= XS、 または docs-only かつ S 以下)**: scope が **XS** (= impact scope 不問)、 または **docs-only かつ size S 以下** の `delegate-single` に限り、 dual spawn の代わりに **Lead spot-check** を許可する。 **docs-only でも M 以上 (= 複数ファイルにまたがる設計 doc / ADR 群の編集) は dual review 必須** (= 独立レビューの価値が最も高いのは大きな設計文書)。 size 境界は `$task-slicing` の 「Size テーブル」 が SoT (= 本 skill で数値を再掲しない)。 条件: **何を spot-check したかを 1 行で記録** する (= 例: `spot-check: diff 全読 + markdownlint + リンク先実在確認`)。 記録なしの省略は不可。
+  - 免除の発動判定は **客観条件のみ (= size class + docs-only の 2 軸)**。 免除条件外を 「軽微だから」 「すぐ済むから」 と主観で省略するのは従来どおり **不可**。 spawn を skip して良いのは Lead-direct verdict と上記サイズ免除のときだけ。
 - `delegate-slice`: `$task-slicing` invoke。 slice plan 完了後 user 承認、 各 wave を `delegate-single` 相当で回す。
   - **無人起動時 (= `$issue-execute` 経由 / 人間不在の自動 session) は user 承認を待たず自動 proceed**。 承認者が不在なので計画提示で止まらない。 計画を `$prepare-uat` に逃がして実装を放棄するのは **禁止** (= 詳細は `$task-slicing` の 「無人起動時のデフォルト」 セクション)。
   - **必須**: 各 wave で **qa-expert + security-auditor を必ず spawn** する。 wave スキップ (= 「この wave は小さいから review 省略」) は **不可**。
@@ -177,6 +184,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "📋 着手 Plan (軽量�
 
 ## Agent chain
 - architect → fullstack-engineer → qa-expert + security-auditor → \$finish-task
+- (= XS / docs-only のサイズ免除適用時は 「architect → fullstack-engineer → Lead spot-check (= 1 行記録) → \$finish-task」)
 - (= Lead-direct の場合は 「Lead 直接実装 (= sub-agent なし)」)
 
 ## ADR
@@ -230,11 +238,12 @@ verdict が決まったら、 **実装着手前** に project の git 規約を�
 - **Never** L+ タスクで `delegate-single` を invoke しない。 1 ラウンド委譲は大規模 PR と context あふれを生む。
 - **Must** 3 質問のいずれかに自信を持って答えられないときは surface。 委譲の摩擦を避けるために黙って 「Lead-direct」 と仮定しない。
 - **Must** ファイル数指標は advisory のみと扱う。 定性 gate が判断。
-- **Never** `delegate-single` / `delegate-slice` の各 wave で `qa-expert` / `security-auditor` の spawn を省略しない。 **autonomous mode でも省略不可**。 「軽微」 「時間ない」 「自分で見たから OK」 はすべて却下理由 (= 自己レビュー bias で品質落ちる主因)。 spawn 自体を skip して良いのは Lead-direct verdict のときだけ。
+- **Never** S 以上の `delegate-single` / `delegate-slice` の各 wave で `qa-expert` / `security-auditor` の spawn を省略しない。 **autonomous mode でも省略不可**。 「軽微」 「時間ない」 「自分で見たから OK」 はすべて却下理由 (= 自己レビュー bias で品質落ちる主因)。 例外は **size class で判定するサイズ免除のみ** (= XS または docs-only の `delegate-single` は Lead spot-check + 1 行記録で代替可、 Step 3-2 参照。 size 境界は `$task-slicing` の Size テーブルが SoT)。 `delegate-slice` の wave に免除はない。
 - **Never** `delegate-slice` で ADR を同一 turn で Proposed から Accepted に昇格させない。 起票 = この turn、 昇格 = 別 turn (= user 確認後)。
 - **Never** project 規約が branch を要求するときに main 直 commit しない。 multi-file / 新 feature / 公開挙動変更なら **必ず feature branch**。
 - **Never** 技術 doc / ADR / コード comment / panic msg / `#[ignore]` reason / config comment / skill 例 / 設計案 / report / commit msg / PR body に **マイルストーン / Phase / Wave 名 (= M0-M5, Phase 2, Wave 9-D, Sprint N)** / **将来時制 (= "will be", "later wave", "deferred to ...", "is cut when X")** / **拡張予定 / future-proofing 表現 (= "for future X", "extensible to ...", "may add Y later", "(and any future palette extension)")** を書かない。 詳細は本セクション直下の 「将来予定を書かない」 を参照。 reviewer 系 agent (= qa-expert / performance-engineer / security-auditor / architect / technical-writer) は本ルール違反を **指摘対象** として扱う。
 - **Stop** ユーザー要求が純粋に情報目的 (= 書きなし、 exec なし) なら止める。 この skill は code/docs/state 変更タスク用。
+- **Stop** 評価 / 監査 / レビュー型要求 (= read-only、 成果物はレポート) はこの skill の対象外。 `qa-expert` を基本に据えて spawn し `architect` を併走させる (= security 観点を含むなら security-auditor も追加)。
 - **Must** verdict 1 つにつき Y-trace 1 行を添える。 escape valve は自明な Lead-direct (= 1 ファイル typo / mechanical rename) のみ。 「結論だけ来て判断に困る」 という user feedback への構造的対応 (= reasoning trace 長さが perceived difficulty proxy になる業界知見、 Y-Statement format = 5 要素 1 文の MADR 派生)。
 - **Never** Y-trace を MUST にしてすべての判断に重い trade-off 表を要求しない。 1 行 ≒ 30-50 token、 出力肥大を防ぐため形式を 1 行に縛る。
 

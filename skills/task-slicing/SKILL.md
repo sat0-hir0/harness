@@ -125,6 +125,15 @@ Wave は **クリーンにマージされ (DoD 完了)** て初めて done と�
 - **各 wave 完了で commit** (= Conventional Commits 形式、 project の commit hook が enforcer)。
 - **全 wave 完了で push、 PR は user に依頼する** (= Lead は `git push` まで実行、 PR 作成は user の判断ステップとして残す)。 ただし autonomous mode で 「勝手に PR まで」 と明示された場合のみ Lead が PR を作る。
 
+#### Cross-model review (= 全 wave 完了後の pre-UAT step、 Claude Code + Codex plugin 限定)
+
+same-model review (= 生成したモデル自身と同系の reviewer 系 agent による review) は生成側と盲点を共有する。 これを補うため、 **全 wave 完了後、 push / `$prepare-uat` の前に 1 回だけ**、 branch 全体 diff への cross-model review (= Codex) を挟む。 wave ごとには実行しない (= 外部 CLI 呼び出しを 1 feature 1 回に抑えつつ、 全 wave の合成 diff を 1 回でカバーする)。
+
+- **実行条件 (= 両方を満たす時のみ)**: (1) 実行 vendor が Claude Code (2) Codex plugin (= `codex@openai-codex`) が install 済み (= `~/.claude/plugins/installed_plugins.json` に entry あり)。 本 skill は multi-vendor 配布なので、 条件を満たさない環境では本 step は存在しないものとして扱う。
+- **実行方法**: plugin の `installPath` (= installed_plugins.json から解決) を使い、 Bash で `node "<installPath>/scripts/codex-companion.mjs" review --wait --base <default branch>` を実行する (= plugin の `/codex:review` と同じ runtime。 slash command 本体は user 入力専用の設定なので、 Lead は runtime script を直接呼ぶ)。 review 出力は verbatim のまま扱い、 要約で薄めない。
+- **findings の扱い (= advisory、 gate ではない)**: cross-model の指摘は別モデルの failure mode を持ち込む観点であり、 block しない。 Lead が各指摘を fix / defer / reject に振り分け、 振り分け判断ごと `$prepare-uat` の 「レビュー指摘」 欄 (= 有人 session なら完了報告) に記載する (= 黙殺しない)。 fix に回した指摘は該当 wave の実装と検証を再度回してから push に進む。
+- **fallback (= 条件不成立 / 実行失敗 / timeout)**: 本 step を skip し、 「レビュー指摘」 欄に 「cross-model review: skipped (= 理由 1 行)」 を残す。 skip は正常系 (= 他 vendor に plugin は無い)。 review の失敗を理由に wave の成果や push を巻き戻さない。
+
 ## Slice plan テンプレート (= 本 skill の出力物)
 
 ```markdown
@@ -208,7 +217,7 @@ Wave は **クリーンにマージされ (DoD 完了)** て初めて done と�
 
 上記テンプレートで slice plan を返す。Lead はそのまま Wave 1 の hand-off に進む (= プロジェクトのチェーンに従って `$propose-adr` 等を呼び出す)。
 
-Plan が書けたら、`$wave-status` (= 兄弟 skill) で進捗トラッキングを登録する。ステータスファイル (`~/.claude/state/slice-<feature>.md` またはプロジェクト固有のパス) が wave のチェックボックスを持ち、`$wave-status` が wave マージのたびに更新する。
+Plan が書けたら、`$wave-status` (= 兄弟 skill) で進捗トラッキングを登録する。ステータスファイル (`<vendor-home>/state/slice-<feature>.md` またはプロジェクト固有のパス。 `<vendor-home>` の解決は wave-status SKILL.md の File location 参照) が wave のチェックボックスを持ち、`$wave-status` が wave マージのたびに更新する。
 
 ## Worked example: ディレクトリツリーフィーチャー (= VSCode Explorer 風サイドバー)
 
@@ -406,7 +415,7 @@ gh issue comment <N> --repo sat0-hir0/backlog --body "<comment>"
 - (= 無ければ 「なし」)
 
 ## wave-status
-- file: ~/.claude/state/slice-<feature>.md (= 進捗の SSOT)
+- file: <vendor-home>/state/slice-<feature>.md (= 進捗の SSOT、 <vendor-home> は wave-status の per-vendor 自己判定で解決)
 ```
 
 ## Project connection (= 実際のリポジトリへの組み込み方)
@@ -466,7 +475,7 @@ step-by-step が明示された場合 (= user 発話に 「慎重に」 「途�
 `$issue-execute` 経由 (= backlog Issue から起動) や cron heartbeat からの起動は **承認者が不在**。 この場合の挙動を固定する:
 
 1. **ステップ 2 の計画承認ゲートは自動 proceed**。 計画を全文 surface はする (= 記録のため) が、 `proceed` を待たずに即 Wave 1 へ進む。 「人間が承認していないから実装に入れない」 と解釈して止まるのは **誤動作**。
-2. **全 wave を最後まで走破する**。 これが唯一の正しい終端。 走破後に **1 回だけ** `$prepare-uat` を呼んでまとめ UAT パッケージを生成する (= UAT は実装込みで Awaiting UAT に到達したものに対して行う)。
+2. **全 wave を最後まで走破する**。 これが唯一の正しい終端。 走破後に **1 回だけ** `$prepare-uat` を呼んでまとめ UAT パッケージを生成する (= UAT は実装込みで Awaiting UAT に到達したものに対して行う)。 `$prepare-uat` の前に Step 3-3 の cross-model review (= Codex、 実行条件を満たす場合のみ) を 1 回実行し、 指摘の振り分け結果を UAT パッケージに含める。
 3. **計画だけ立てて `$prepare-uat` に逃がすのは禁止**。 diff 0 行で UAT パッケージを作らない (= `$prepare-uat` 側でも diff 空なら STOP する gate あり)。
 4. 以下は **停止理由にならない** (= よくある誤った停止):
    - 「規模が XL / 複数 session にまたがる」 → wave に切ってあるので 1 wave ずつ進めば良い。 1 session で終わらなくても、 進めた分まで実装して UAT に出すのが正。
