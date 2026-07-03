@@ -1,6 +1,6 @@
-<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img">
+<svg viewBox="0 0 1280 820" xmlns="http://www.w3.org/2000/svg" role="img">
   <title>俯瞰図 1/2: backlog 側 board lifecycle</title>
-  <desc>backlog harness の外側の流れ: 起動 3 経路 + board 6 列 + 状態遷移 + label / WIP</desc>
+  <desc>backlog harness の外側の流れ: 起動 3 経路 + board 7 列 (= Epic 含む) + Parent issue Swimlane + 状態遷移 + label / WIP</desc>
 
   <style>
     .title { font: 700 18px ui-sans-serif, -apple-system, sans-serif; fill: #f0f6fc; }
@@ -31,7 +31,7 @@
   </defs>
 
   <text x="40" y="30" class="title">俯瞰図 1/2: backlog 側 board lifecycle (= 外側)</text>
-  <text x="40" y="48" class="subtitle">起動 3 経路 → board 6 列 → label / 状態遷移 / verdict 3-way / 内側 zoom は俯瞰図 2/2 へ</text>
+  <text x="40" y="48" class="subtitle">起動 3 経路 → board 7 列 (= Epic 列追加) → Parent issue Swimlane → label / 状態遷移 / verdict 3-way / 内側 zoom は俯瞰図 2/2 へ</text>
 
   <g transform="translate(820, 22)">
     <line x1="0" y1="7" x2="22" y2="7" stroke="#3fb950" stroke-width="2" marker-end="url(#ar-flow)"/>
@@ -72,7 +72,7 @@
     <text x="12" y="72" class="stage-sub" style="fill:#79c0ff">→ Ready 1 件 pick → $issue-execute</text>
   </g>
 
-  <text x="40" y="208" class="col-head">board: GitHub Projects v2 (= 6 列、 WIP 上限 In Progress=3)</text>
+  <text x="40" y="208" class="col-head">board: GitHub Projects v2 (= 7 列 = child の 6 status + Epic 列、 WIP 上限 In Progress=3、 view = Parent issue Swimlane)</text>
 
   <g transform="translate(40, 220)">
     <rect x="0" y="0" width="195" height="200" fill="#21262d" stroke="#6e7681" stroke-width="1.5" rx="6"/>
@@ -234,5 +234,35 @@
     <text x="12" y="40" class="stage-sub">In Progress のみ = 3 件</text>
     <text x="12" y="56" class="stage-sub">Completion Check / Awaiting UAT は対象外</text>
     <text x="12" y="74" class="actor">認知 chunk + Kingman の式</text>
+  </g>
+
+  <text x="40" y="722" class="col-head">階層 Issue 構造 (= §18): Epic 列 = 計画装置 / child = 実装単位 (= AI 着手対象)</text>
+
+  <g transform="translate(40, 734)">
+    <rect x="0" y="0" width="290" height="70" fill="#21262d" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title" style="fill:#79c0ff">▣ Epic 列 (= 親 Issue)</text>
+    <text x="12" y="40" class="stage-sub">計画装置: child を束ねる目次</text>
+    <text x="12" y="56" class="stage-sub">subIssuesSummary で進捗 N/M 表示</text>
+  </g>
+
+  <g transform="translate(350, 734)">
+    <rect x="0" y="0" width="290" height="70" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title" style="fill:#79c0ff">⏭ AI 着手対象</text>
+    <text x="12" y="40" class="stage-sub">child のみ (= Epic は対象外)</text>
+    <text x="12" y="56" class="stage-sub">heartbeat の Ready pick で自然除外</text>
+  </g>
+
+  <g transform="translate(660, 734)">
+    <rect x="0" y="0" width="290" height="70" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title" style="fill:#79c0ff">🔗 紐付け = REST API</text>
+    <text x="12" y="40" class="stage-sub">Sub-issues (= integer database id)</text>
+    <text x="12" y="56" class="stage-sub">Tasklist (本文 - [ ]) は使わない</text>
+  </g>
+
+  <g transform="translate(970, 734)">
+    <rect x="0" y="0" width="290" height="70" fill="#0d1117" stroke="#1f6feb" stroke-width="1.5" rx="6"/>
+    <text x="12" y="20" class="stage-title" style="fill:#79c0ff">🏷 product:* label (= §19)</text>
+    <text x="12" y="40" class="stage-sub">Epic dropdown → child へ継承</text>
+    <text x="12" y="56" class="stage-sub">workflow が本文 ### Product を parse</text>
   </g>
 </svg>

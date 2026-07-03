@@ -7,7 +7,7 @@
 ハーネスは 2 層に分かれる:
 
 - **内側 (= 本 repo のスコープ)**: 「1 つの要求 (= ユーザー発話 / Issue / バグ報告) を受け取り、 設計 → 実装 → 検証 → 完了報告まで回す」 共通の skill chain。 vendor (= Claude Code / Codex / Cursor / Gemini) を問わず同じ構造で動く。
-- **外側 (= プロジェクト固有のスコープ)**: 「要求をどこから拾い、 どこに着地させるか」 のライフサイクル。 例: backlog ハーネスでは GitHub Issue を起点に board の 6 列で管理する。
+- **外側 (= プロジェクト固有のスコープ)**: 「要求をどこから拾い、 どこに着地させるか」 のライフサイクル。 例: backlog ハーネスでは GitHub Issue を起点に board の 7 列 (= child 6 status + Epic 列、 §18) で管理する。
 
 本 doc は **主に内側を記述** し、 外側との接続点 (= boundary) を §4.3 で明示する。 内側と外側の責務分離が doc 整理の核心。
 
@@ -59,7 +59,7 @@
 
 | プロジェクト | 入口 | 着地点 |
 |---|---|---|
-| backlog | GitHub Issue (= board 6 列) | PR merge で Done |
+| backlog | GitHub Issue (= board 7 列 = child 6 status + Epic 列) | PR merge で Done |
 | 単発タスク (= chat 直起動) | user 発話 | session 終了 |
 | code-review 作業 | PR / branch diff | 修正 commit |
 
@@ -411,3 +411,87 @@ unmerged なまま Done column に置かれた card は不整合である。 §9
 **fail コメントだけでは再実装 session に消費されない (= 実証済み)**。 backlog#82 では `needs-fix` label + fail コメントのみの差し戻しに対し、 再実装 session が同一 fail を 2 連続で再現した (= コメントは読み飛ばされる)。 **必須 deliverable を Issue 本文に追記する方式へ切替後**、 backlog#82 は 3 回目で収束、 backlog#86 は 1 発で収束した (= 本文は再 pick 時に必ず読まれる)。
 
 したがって差し戻しは、 fail 理由コメントに **加えて**、 Issue 本文へ 「**差し戻し: 必須 deliverable**」 セクションを追記することを必須とする。 内容は (1) 再実装が満たすべき deliverable の列挙、 (2) 各 deliverable の受け入れ確認 (= acceptance check、 再実装 session が自己検証できる形)。 コメントは経緯の証跡、 本文追記は次 session への確実な入力、 と役割を分ける。
+
+## 18. 階層 Issue 構造 (= Epic + sub-issue、 外側レイヤーの仕様)
+
+> §16 と同じく末尾追記 (= 既存節の連番を動かさない)。
+
+backlog harness は GitHub Sub-issues (= parent ↔ child) を **計画 / 実装** のレイヤー分離に使う。 概念:
+
+- **Epic** = 上位の機能群を束ねる **計画装置** (= 目次 + 進捗バー表示装置)。 child 一覧は GitHub native の Sub-issues 欄が自動表示するため、 本文には列挙しない (= 二重管理回避)
+- **child** = 実装単位の Issue (= 1 child = 1 deliverable)。 AI 着手対象はこちらのみ
+
+### 設計原則 (= 5 軸)
+
+| 軸 | 採用方針 |
+|---|---|
+| AI 着手対象 | **child Issue のみ** (= Epic は計画装置で着手対象外) |
+| status 連動 | **独立** (= child は個別 status、 Epic の進捗は GitHub の `subIssuesSummary` が自動表示) |
+| 実装スコープの記述 | **child 本文に分散** (= Epic は目次。 詳細実装事項は child 側) |
+| heartbeat の pick 対象 | **child のみ** (= Epic は board の `Epic` 列にしか居ないため、 Ready 列 pick の filter で自然に除外される) |
+| Completion Check の判定 | **各 child 独立判定** (= 親 Epic は判定対象外、 child の Done 集計は GitHub 側で勝手に行う) |
+
+### 列構造 (= board 上の Epic 列、 backlog 固有)
+
+backlog board の Status field option は 7 個:
+
+| Status | 説明 |
+|---|---|
+| Inbox | 着手前の未整理 Issue (= idea / 議論中) |
+| Ready | 着手可能、 仕様確定済 (= heartbeat pick 対象) |
+| In Progress | AI 着手中 (= `running` ラベル付与済、 §9) |
+| Completion Check | 性悪説 Checker による精査中 (= §13) |
+| Awaiting UAT | 人間 UAT 待ち |
+| Done | 完了 (= child は PR merge で自動遷移、 Epic は user が手動で移動) |
+| **Epic** | 親 Issue 専用 (= child の status 遷移とは独立、 完了したら user が手動で Done に動かす) |
+
+child Issue は 6 個の status を巡回し、 Epic Issue は `Epic` 列に居続けて (= 全 child が Done になったら user が `Done` に動かす)。 board の view を **Group by Parent issue (Swimlane)** にすると、 各 Epic ごとに横 row が形成され、 child が `Status × Epic` の格子上に並ぶ (= backlog 固有の運用 doc は [backlog/docs/board-view-guide.md](https://github.com/sat0-hir0/backlog/blob/main/docs/board-view-guide.md))。
+
+### 紐付け API (= GitHub Sub-issues REST)
+
+- POST `repos/{owner}/{repo}/issues/{parent_number}/sub_issues` で parent ↔ child を紐付け
+- 引数 `sub_issue_id` は **REST database id (= integer)** を要求 (= GraphQL global node_id ではない)。 `gh api repos/.../issues/<N> --jq .id` で取得した integer を `gh api -F sub_issue_id="$ID"` で送る (= `-F` が JSON typed フィールド)
+- Tasklist (= 本文の `- [ ] #N` チェックボックス) は別物 (= 本文の参照リンクであり、 階層構造として Projects v2 が認識しない)。 階層構造管理は Sub-issues API 一択
+
+### Epic Issue 本文の form (= `.github/ISSUE_TEMPLATE/epic.yml`)
+
+Epic 用 form の field 構成:
+
+| field | 必須 | 内容 |
+|---|---|---|
+| Product (dropdown) | yes | `product:limn` / `product:harness` 等 (= §19 product label 設計) |
+| 目的 (textarea) | yes | この Epic で達成したいこと (= Why) |
+| スコープ (textarea) | yes | 含む範囲 / 含まない範囲 (= What / What not) |
+| 完了条件 (textarea) | no | Done と判断できる基準 |
+| 依存関係 / 前提 (textarea) | no | 他 Epic / 外部サービスへの依存 |
+| 備考 (textarea) | no | 詳細はコメントで追記する文化を維持 (= 議論ログを本文に埋め込まない) |
+
+child Issue 本文の form (= `idea.yml`) と異なり、 Epic は `### Execution mode` / `### 人間対応の要否` セクションを持たない (= Epic は計画装置で `$issue-execute` が parse しないため不要)。
+
+## 19. product label 設計 (= 横断 product の識別、 外側レイヤーの仕様)
+
+backlog は複数 product を 1 つの board で扱う (= 現状 limn / harness)。 各 Issue が **どの product 由来か** を識別する仕組みとして `product:*` ラベルを使う。
+
+### ラベル一覧 (= 現状)
+
+| ラベル | 対象 product |
+|---|---|
+| `product:limn` | limn (= keyboard-first Markdown editor) 関連 |
+| `product:harness` | harness (= AI development harness) 関連 |
+
+### 付与経路 (= 二系統)
+
+| 経路 | 付与方法 |
+|---|---|
+| web UI 経由 (= Issue Forms) | `.github/workflows/apply-product-label.yml` workflow が **本文の `### Product` section を parse** して label を付与 |
+| chat 経由 (= `$issue-from-idea`) | skill が `gh issue create --label product:<x>` で **直接付与** (= workflow を経由しない) |
+
+両経路ともに本文に `### Product` section を持たせるため、 万一の二重付与は冪等で無害 (= 同じラベルを 2 回 add しても GitHub API は idempotent)。
+
+### Epic と child の関係
+
+- Epic Issue: form の Product dropdown が必須 (= Epic 作成時に必ず 1 product を選択)
+- child Issue (= 経路 b/c): 親 Epic の product label を **継承** (= skill が `gh issue view <E> --json labels` で親の `product:*` を取得して child に同じ label を付ける)
+- child Issue (= 経路 a、 parent なし): product label を **付けない** (= AI が無理に判定しない、 user に確認も急がない。 後から `gh issue edit` で足せる)
+
+product label は **board の filter / search** で活用される (= 「limn 関連の Issue だけ表示」 「harness の Ready を一覧」 等の view 切替)。 label の追加 / 削除は単純な `gh label create` / `gh label delete` で行い、 board 側 field の変更は不要 (= ラベルは Issue に直接付くため、 board の field 設定とは独立)。
