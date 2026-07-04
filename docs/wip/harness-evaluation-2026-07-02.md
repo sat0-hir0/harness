@@ -245,3 +245,87 @@ Epic #80 の改善 wave (= 20 票、全 merge) 完了後に §1 と同一手法�
 - 「文書化された gate の機械的締結」はスコアに反映された (= routing / eval の +1 は全て lint・実行・CI 由来)
 - 大規模 wave は wave 自身が矛盾を持ち込む (= 3 箇所)。行動 eval と再評価が回収装置として機能した
 - 配布 drift は 1 層直しても下の層で再発する。**merged → 配布 source → deployed の全層 hash 検証**が必要
+
+## 12. 第 3 回評価 (2026-07-03 午後、同一手法 19 agents)
+
+Epic #106 の残課題 wave (= 7 Issue #107-#113、全て Awaiting UAT / 9 open PR / 全 MERGEABLE) 実装後に §1 と同一手法で 3 回目の採点。採点規則を厳格化し、**main + deployed の landed state のみを採点、未 merge branch の改善は pending delta として分離** (= ハーネス自身の Done ≠ merged / deployed == SoT doctrine を評価にも適用)。judge の全 score / 新規 defect は敵対的検証を通過済み。
+
+### 12.1 スコア (据え置き、上昇頭打ち)
+
+| 次元 | 07-02 | 07-03 朝 | 07-03 午後 | 変動根拠 |
+|---|---|---|---|---|
+| context 経済性 | 3 | 3 | 3 | deployed==main sha256 一致は加点だが、常時 description 4,902 字・機械的長さ予算が main に不在 (lint は未 merge PR #24 のみ) |
+| routing 信頼性 | 3 | 4 | 4 | anchor 4 の締結 3 件 (lint-agent-refs / frontmatter-lint exit 0 / description 1,459<1,535 render 実測) は main で有効。新規 3 hygiene 欠陥は verdict を反転せず 4 維持、5 には届かず |
+| eval・観測性 | 2 | 3 | 3 | L0/L1 30/30・L2 baseline は main 実在だが、root-cause 修正・再 baseline・cost 会計は全て未 merge。push-to-main CI が赤で main signal が汚染 |
+| 外側ループ自動化 | 3 | 3 | 3 | 配布 drift 解消 (9 skill hash 一致) は加点だが、中枢 gate は DRY_RUN=true 休眠・本日 wave が文書化経路を bypass・補償 CI 3/3 赤で相殺 |
+| process 重量 vs 価値 | 3 | 4 | **3** | ceremony 削減 (XS 免除 / 軽量 UAT 形) は健在だが、「残した gate が実際に効く」前提が 3 点で崩れた (下記)。self-correction による健全な差し戻し |
+| platform 適合 | 3 | 3 | 3 | 構造は正しいが、deployed==SoT が agents 層で機械破綻 (junction ENOENT)、chezmoi apply が stale mirror へ巻き戻し |
+
+**総括:** 上昇は routing / eval の機械 gate 締結が牽引したが、landed state は据え置きに転じた。理由は明確 — **実質すべての改善が 9 open PR + 3 direct-push の branch 側に滞留し、main では逆に配布・CI 層の実 defect が露呈**。「機械 gate は landed したが、それらが本番で回る証拠 (status 遷移 / green CI / 文書化経路の完走) が 1 つも無い」天井に達している。
+
+### 12.2 新規 defect (= 全て敵対的検証 valid、main/deployed 実在、§3/§11 未収録)
+
+1. **push-to-main CI が構造上 3/3 赤 (最重要、process に PRIMARY 帰属)**: §11.2-4 が「direct main push 素通りを塞ぐ」として追加した `push: branches:[main]` trigger は、push event で `github.base_ref` が空になり future-plans lint step が `git diff origin/..HEAD` で fatal (exit 2)。追加以降の main push 3/3 (1a5d16a / be0c2d4 / da372d3) が全て failure、PR run は 6/6 success。**fix として足した gate が一度も pass せず**、赤い main CI を常態化する。修正 PR は存在しない。(eval / outerloop / platform でも波及計上されたが根本原因は 1 つ)
+2. **deployed agents が file-targeting junction で runtime から読めない (platform に PRIMARY 帰属)**: `~/.claude/agents/*.md` 6 本が「ファイルを対象とする Windows junction」(junction はディレクトリのみ有効) で、Node (= Claude Code runtime) の `readFileSync` が全 6 で ENOENT。deployed==SoT が agents 層で機械破綻。**この junction は 06-29 作成 = 07-02 以前から存在した latent defect** であり、過去 2 run の platform 3 が両方甘かったことの露呈。MEMORY の「0/N linked は表示バグ・実害なし」認識とも矛盾する。
+3. **dotconfig main の stale agents mirror が chezmoi apply 地雷 (platform に PRIMARY)**: `dot_config/skillshare/agents/` に 06-26 時点の 6 agent 古コピーが track されたまま (#82 YAML quoting fix / #95 dead MCP 除去の**前**)。`chezmoi status` = MM ×6、routine な `chezmoi apply` が live agents を修正前へ巻き戻す。§3.6 の RESOLVED 宣言 (07-02) は file-class を DRY_RUN に限定した部分解消で、mechanism 全体は未解消だった。
+4. **本日の残課題 7 Issue が外側ループの文書化経路を bypass (process/outerloop)**: prepare-uat → Completion Check → cron 精査という設計経路を通らず、AI 代行 pick + 検証コメントのみで status が Awaiting UAT へ proxy 遷移 (🎯 UAT package も 🔍 cron verdict も 7 Issue 全てに不在)。対照の #82/#86 は full trail を持つ。**ハーネス自身が最重量 ceremony を skip した = 文書化 gate が enforce されていない直接証跡。**
+5. **PR lane を 3 回 direct-to-main push で bypass (process)**: 1a5d16a / be0c2d4 / da372d3 が direct-to-main commit、うち 2 件が skills/ を変更 = PR-event でしか走らない deterministic CI (frontmatter / agent-ref / fixture-sync lint) を skill 変更が素通り。
+6. **L2 run_set 互換キーに extractor version が無い (eval)**: `eval-behavioral.py` の compare は model / cli_version / trials の 3 項のみで互換判定し、VERDICT_RE 変更前後の baseline を silently comparable 扱い = regex 修正跨ぎの回帰比較が「行動変化」と「抽出変化」を区別できない。
+7. **hygiene 残債 group (routing に PRIMARY、context と cross-reference・score 不動)**: task-slicing の description/body 起動条件矛盾 (SKIP 1-4 files vs body ≥2 files) / Step 3-4 が Worked example 配下に構造迷子 / ADR 例示名 drift ($adr-proposal vs $propose-adr)。いずれも verdict を反転せず context 予算 regression も無い hygiene debt。
+8. **doc drift (eval)**: harness CLAUDE.md の eval-gate 契約と wip test-strategy が、main に landed 済みの L2 behavioral runner を反映せず「eval は skill を実行しない / L2 未実装」のまま。観測 stack の自己記述が実態より弱い。
+
+### 12.3 盲点 (どの次元も未採点)
+
+- **issue-status.ps1 が無テスト**: DRY_RUN=false 化で board を動かす唯一のコードに Pester/単体テスト 0 件。flip 瞬間に機械検証ゼロで本番化される。
+- **security 露出面が main で稼働中**: #107 (injection 対策) は実装済みだが unmerged。一方 cron heartbeat は本日実走 (#72 stall 検出) = 自律 gh 経路自体は live。対策は branch・露出面は main という gap を誰も grade していない。
+- **main 発散の管理不在**: 9 open PR + 3 direct-push が積み上がる一方、merge ordering / main 発散を指標化する次元が無い (process 射程外)。
+- **chezmoi 地雷の recovery runbook 不在**: 巻き戻り後の復旧手順が配布層に存在するか未確認。検出のみで recovery 経路が無い。
+- **評価ハーネス自身の meta コスト / anchor-lock バイアス未採点**: 2 日 3 回の評価プロセスの運用コストと、judge が自 run の anchor を hold する構造 (= §3.6 の RESOLVED 誤宣言のような早期誤判定を次 run へ伝播させる) が未計測。
+
+### 12.4 教訓の追加
+
+- **スコア上昇は「機械 gate の landed」で説明できるが、天井は「それが本番で回る証拠の不在」で決まる**。routing/eval の +1 は締結由来で正当。だが 4 次元が 3 連続据え置きなのは、gate が休眠 (DRY_RUN=true) / 空回り (CI 3/3 赤) / 自己 skip (wave の経路 bypass) しているため。**次の上昇には branch の merge ではなく「DRY_RUN=false 化 + push-CI green + 次 wave の CC 経路完走」という運用実績が landed で必要。**
+- **配布 drift の mechanism は file-class ごとに個別解消が要る**。§3.6 の DRY_RUN 解消は agents mirror には及ばず、単発の RESOLVED 宣言は禁物 (別 file-class で再発する)。
+- **「補償として gate を足す」時は、その gate が実際に pass する経路を 1 回確認する**。push-CI は fix として記録されたが一度も pass せず、赤い CI が「main CI は無視してよい」を訓練していた。
+- **self-correction は健全に機能した** (process 4→3 差し戻しは同日午後の反証で 1 サイクル是正)。ただし latent defect (agents junction、06-29 発生) を 2 run 見逃した事実は、evaluation の網羅性に構造的な穴があることを示す。
+
+## 13. 第 4 回評価 (2026-07-03 深夜、残課題 wave の merge 反映後)
+
+第 3 回の残課題 (9 open PR) を全て merge し、DRY_RUN=false を本番化、chezmoi の stale agents mirror 地雷を除去した後に再採点。今回は改善が landed したため加点対象になったが、「landed かつ exercised (= 自コマンドで動作再現)」と「merged-but-unproven (= 着地は確認したが動作証跡なし)」を厳密に区別した。全 judge スコアは敵対的検証を通過。
+
+### 13.1 スコア (3 次元が +1、landed の反映)
+
+| 次元 | 07-02 | 07-03 朝 | 07-03 午後 | **07-03 深夜** | 上げ根拠の質 |
+|---|---|---|---|---|---|
+| context 経済性 | 3 | 3 | 3 | **4** | EXERCISED — description 長 lint が実データ (task-routing 1,459 字) で WARN 発火を自コマンド再現 |
+| routing 信頼性 | 3 | 4 | 4 | **4** | lint 層は exercised だが deployed-runtime 層 (agent 不読) が未成立で 5 不可 |
+| eval・観測性 | 2 | 3 | 3 | **3** | L2 runner は exercised (18 unittest pass) = 加点だが、doc-drift + CI 赤 + agent 不読が 4 を阻む |
+| 外側ループ自動化 | 3 | 3 | 3 | **3** | 心臓 3 核 (本番 cron 実走 / CI green / agent 読取) が未達で 4 連続据え置き |
+| process 重量 vs 価値 | 3 | 4 | 3 | **4** | EXERCISED — warn-first の非ブロッキング設計 + §17 狙い撃ち fix が「重さ相応」を実測 |
+| platform 適合 | 3 | 3 | 3 | **4** | gate-tooling 層は exercised だが distribution 層 (junction) + CI 健全性が broken |
+
+**landed-state vector 推移:** 07-02 `[3/3/2/3/3/3]` → 07-03 朝 `[3/4/3/3/4/3]` → 午後(strict) `[3/4/3/3/3/3]` → **深夜(4th) `[4/4/3/3/4/4]`**。
+
+### 13.2 exercised による前進 (真の capability) vs merged-but-unproven
+
+- **EXERCISED (加点正当、自コマンド再現済み):** description 長 lint (exit 0 + task-routing 1,459 字 WARN 再現、閾値 1,400/1,535) / L2 no-verdict fix (VERDICT_RE 全形式捕捉 + 18 unittest pass) / agent-ref lint + frontmatter parse (exit 0)。配布チェーン main→hub→deployed の sha256 byte-identical も確認。
+- **MERGED-BUT-UNPROVEN (着地確認のみ、動作証跡ゼロ = 加点保留):** §17 prepare-uat 配線 (テキスト存在は確認、差し戻し発火 0 回) / injection hardening #114 (merge 確認、悪意入力を弾いた証跡なし) / **DRY_RUN=false 本番 cron (byte-identical deploy 確認、post-flip の production marker (↩️/✅/⚠️) が 0 件、flip から時間未経過)**。
+
+### 13.3 merge しても残った defect (敵対的検証 valid)
+
+1. **push-to-main CI が構造的に RED (未 track)**: merge 後も未修正。最新 push run (aaf5491/#26) が failure = `github.base_ref` が push event で空 → future-plans lint が `git diff origin/..HEAD` で fatal (exit 2)。**merge 直後の #23-25 の push run は `cancelled` (concurrency cancel-in-progress で pre-empt) であり green ではない** — main-push CI に緑 run が 1 つもない。landed した gate 群は PR-time でしか enforce されておらず、main deploy-time では緑シグナルを出していない。
+2. **deployed agents が Node runtime から読めない (別 root cause で未修正)**: `~/.claude/agents/*.md` 6/6 が file-targeting junction で `readFileSync` が ENOENT。今回の mirror 修正は**内容の巻き戻り**を直したが、**junction link-mode の不読**は別問題。root cause は dotconfig の `13-skillshare-sync.ps1.tmpl` が agents に `--mode copy` を適用していないこと (copy-mode は scripts extras のみ)。chezmoi apply ごとに self-reproduce する。
+3. **eval 自己記述の doc-drift 生存**: CLAUDE.md「eval は skill 本文を実行せず」と test-strategy「L2 未実装 (#97)」が、landed 済みの L2 runner を反映していない。
+4. **Done ≠ closed の再発**: #107-#113 が board-Done だが GH issue state=OPEN (merge での auto-close 経路なし)。
+
+### 13.4 次に上げるための具体条件 (critique の優先順)
+
+1. **push-CI fix (最優先・最小工数・最大波及)**: eval-gate.yml の future-plans step に push-vs-PR guard (`if: github.event_name == 'pull_request'` か push 時 `--base origin/main~1` フォールバック)。YAML 数行で main 上の全 gate が初めて緑シグナルを出し、eval / platform / process / outer-loop の 4 次元に横断的に効く。**eval 3→4 / platform 4→5 の最有力トリガー。**
+2. **本番 cron を実 1 周させる (outer-loop 3→4 の唯一の鍵)**: Completion Check 列に実 Issue を 1 件置き cron slot を 1 周させ、`✅`/`↩️` の本番 prefix comment を board に残す。心臓が landed-but-unproven → proven に変わる。誤判定リスクがあるので初回は 1 件で観測。
+3. **agent junction を copy-mode 化**: skillshare の agent link mode を copy に変える (or dir-junction 化)。runtime が deployed path から agent を読めるようになり、routing の spawn 下流 / eval の agent 観測 / platform の distribution が同時成立。**platform 4→5 の必須条件。**
+4. **doc-drift 解消 (低工数)**: CLAUDE.md と test-strategy を landed 実態に更新。
+
+### 13.5 教訓の追加
+
+- **「merged」と「exercised」は別物**。今回 3 次元 (context / process / platform) が上がったのは lint/L2 を**実際に走らせて再現できた**から。§17 配線・injection・本番 cron は着地したが動作証跡がゼロで、加点しなかった。次 eval で cron が 1 周した瞬間に outer-loop が +1 する「予約された上げ幅」が積まれている。
+- **CI が構造的に赤いまま gate を積むと、PR-time でしか守られない**。push-CI 1 本の修正が landed gate 群の main-time enforcement を一括で有効化する — 最小工数で最大波及の典型。
