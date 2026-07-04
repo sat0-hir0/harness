@@ -57,6 +57,14 @@ jobs:
       - name: agent-ref lint
         run: python scripts/lint-agent-refs.py
       - name: future-plans lint
+        # PR-only: this is a diff check (REF..HEAD) and github.base_ref is
+        # populated on pull_request events but empty on push. On a push to main
+        # there is no base branch to diff against, so origin/${BASE_REF} would
+        # resolve to a malformed `origin/` ref and `git diff origin/..HEAD`
+        # would fail (fatal: ambiguous argument). Doc discipline is a PR-review
+        # concern anyway — finish-task runs the same check before a PR — so
+        # skipping it on direct push loses no real coverage.
+        if: github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.base_ref }}
         # origin/<base> instead of a hardcoded origin/main keeps the diff
