@@ -293,7 +293,7 @@ Epic #106 の残課題 wave (= 7 Issue #107-#113、全て Awaiting UAT / 9 open 
 
 第 3 回の残課題 (9 open PR) を全て merge し、DRY_RUN=false を本番化、chezmoi の stale agents mirror 地雷を除去した後に再採点。今回は改善が landed したため加点対象になったが、「landed かつ exercised (= 自コマンドで動作再現)」と「merged-but-unproven (= 着地は確認したが動作証跡なし)」を厳密に区別した。全 judge スコアは敵対的検証を通過。
 
-### 13.1 スコア (4 次元が +1、landed の反映)
+### 13.1 スコア (3 次元が +1、landed の反映)
 
 | 次元 | 07-02 | 07-03 朝 | 07-03 午後 | **07-03 深夜** | 上げ根拠の質 |
 |---|---|---|---|---|---|
@@ -327,5 +327,5 @@ Epic #106 の残課題 wave (= 7 Issue #107-#113、全て Awaiting UAT / 9 open 
 
 ### 13.5 教訓の追加
 
-- **「merged」と「exercised」は別物**。今回 4 次元が上がったのは lint/L2 を**実際に走らせて再現できた**から。§17 配線・injection・本番 cron は着地したが動作証跡がゼロで、加点しなかった。次 eval で cron が 1 周した瞬間に outer-loop が +1 する「予約された上げ幅」が積まれている。
+- **「merged」と「exercised」は別物**。今回 3 次元 (context / process / platform) が上がったのは lint/L2 を**実際に走らせて再現できた**から。§17 配線・injection・本番 cron は着地したが動作証跡がゼロで、加点しなかった。次 eval で cron が 1 周した瞬間に outer-loop が +1 する「予約された上げ幅」が積まれている。
 - **CI が構造的に赤いまま gate を積むと、PR-time でしか守られない**。push-CI 1 本の修正が landed gate 群の main-time enforcement を一括で有効化する — 最小工数で最大波及の典型。
