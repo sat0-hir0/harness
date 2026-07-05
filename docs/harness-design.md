@@ -65,6 +65,12 @@
 
 外側レイヤーは内側 skill chain の **wrapping** をする責務を持つ。 backlog の場合は `$issue-from-idea` (= Inbox → Ready) / `$issue-execute` (= Ready → In Progress、 内側起動) / `$prepare-uat` (= 完了 → Completion Check) の 3 skill が wrapping を担う。 これら 3 skill は **backlog repo に置く** (= 本 repo には置かない)。
 
+#### 入口集約 × 着地分散 (= boundary skill の repo 解決責務)
+
+要求の **入口 (= どこから拾うか)** と **着地点 (= コードがどの repo にあるか)** は別軸であり、 一方に集約したもう一方は分散しうる。 backlog の例では 入口を 1 つ (= backlog repo の Issue) に集約する一方、 実コードは対象 product ごとの repo (= harness / limn / ...) に分散する。 この非対称を吸収するのが boundary skill の責務である。
+
+原則: boundary skill は **「Issue を操作する repo」と「コードを操作する repo」を分離**する。 前者は入口 repo に固定され、 後者は Issue の分類情報 (= 例: `product:*` ラベル) から解決する。 両者を同一視すると、 別 repo のコードに対して入口 repo で branch を作り、 対象ファイルが存在せず実装できない (= repo mismatch)。 具体の解決規則 (= どの分類がどの repo に対応するか) は **入口 repo 側の boundary skill / 運用 doc に置く** (= 本 repo の管轄外、 §4.1 の方針どおり)。
+
 ### 4.2 内側 skill chain (= 本 repo の管轄、 vendor 非依存)
 
 要求 1 件を回す共通フロー。 入口 2 つ + 共通ステージで構成。
@@ -120,7 +126,7 @@
   例: $prepare-uat は UAT パッケージを Issue にコメント + status を Completion Check に遷移
 ```
 
-boundary skill (= `$issue-execute` / `$prepare-uat` 等) は **プロジェクト個別の repo** で持つ。 本 repo の skill は内側のみを記述する。
+boundary skill (= `$issue-execute` / `$prepare-uat` 等) は **プロジェクト個別の repo** で持つ。 本 repo の skill は内側のみを記述する。 boundary skill が branch / worktree を用意し hand-off プロンプトに載せる際、 その worktree は **解決した着地 repo** (= §4.1 「入口集約 × 着地分散」) を指す。 内側 chain は渡された worktree の上で実装するため、 着地 repo の解決は内側に露出せず boundary が吸収する。
 
 ## 5. 起動経路
 
