@@ -329,3 +329,50 @@ Epic #106 の残課題 wave (= 7 Issue #107-#113、全て Awaiting UAT / 9 open 
 
 - **「merged」と「exercised」は別物**。今回 3 次元 (context / process / platform) が上がったのは lint/L2 を**実際に走らせて再現できた**から。§17 配線・injection・本番 cron は着地したが動作証跡がゼロで、加点しなかった。次 eval で cron が 1 周した瞬間に outer-loop が +1 する「予約された上げ幅」が積まれている。
 - **CI が構造的に赤いまま gate を積むと、PR-time でしか守られない**。push-CI 1 本の修正が landed gate 群の main-time enforcement を一括で有効化する — 最小工数で最大波及の典型。
+
+## 14. 第 5・6 回評価 (2026-07-04)
+
+### 14.1 第 5 回 (2026-07-04 午前、36 agents)
+
+Epic #106 の残課題を全 merge した直後に採点。vector = **[4/4/3/4/4/4]** — 第 4 回 `[4/4/3/3/4/4]` から **outer-loop 3→4** の 1 次元上昇。実体: completion-check の rubber-stamp が independent-evidence 必須 (§2(d) fresh 再実行 + exit code) に置換 + DRY_RUN=false 化 + §17 body-append 配線 + 両 cron firing。生存 defect (severity 順): ①**critical** deployed agents 6/6 が file-junction で Node loader ENOENT (delegate chain 実機不発)、②③**high** trigger 契約 / prose→case drift が eval の diff 対象外、④**medium** push-to-main CI 赤、⑤-⑦ low。前回宿題 3 件 (push-CI / 本番 cron 1 周 / agent copy-mode) は当時 0/3 未完了。
+
+### 14.2 第 6 回 (2026-07-04 午後、18 agents)
+
+第 5 回の最重要 2 defect (①critical agents junction / ④push-CI 赤) を本セッションで解消・**実機実証**した後に採点。vector = **[4/4/3/4/4/5]** — 第 5 回から **platform 4→5** の 1 次元上昇。
+
+| 次元 | 5th | 6th | 判定 |
+|---|---|---|---|
+| context 経済性 | 4 | 4 | 維持 (doc-drift + task-routing desc 1,459/1,535 で headroom 76 字) |
+| routing 信頼性 | 4 | 4 | 維持 (trigger-flip が EXIT=0 silent + L2 unwired が 5 を阻む) |
+| eval・観測性 | 3 | **3** | judge の 3→4 提案を **verify が反証** (fixture-sync は元々 push で success、green 化の実体は非 eval の future-plans lint)。6 eval 連続据え置き = 恒常ボトルネック |
+| 外側ループ自動化 | 4 | 4 | 維持 (forward `✅` marker 未実証 / Done≠closed が #107-#113 で固着) |
+| process 重量 vs 価値 | 4 | 4 | 維持 (future-plans lint が lefthook にも main-push にも無く direct push 無防備、low) |
+| platform 適合 | 4 | **5** | **state-of-the-art 到達**。2 judge 独立 5 + verify 追認 |
+
+**platform 4→5 の根拠 (全て command 再現、exercised):**
+- 5th の critical (agents junction ENOENT) 根絶: `node fs.readFileSync` で `~/.claude/agents/*.md` 6/6 OK・全件実ファイル (LinkType null)
+- 配布チェーン source→hub→deployed の raw sha256 が 6/6 byte-identical (三方 parity)
+- sync script に 3 重防御 (`--agent-mode copy` + junction purge + `sync --force`)、自己再生欠陥を根絶
+- main-push CI が全 6 eval で初めて green (push run 28697606611 = SUCCESS、直前 aaf5491 = failure の before/after 確認)
+
+### 14.3 生存 defect (敵対的検証 valid、eval を縛る)
+
+1. **trigger 契約が eval の diff 対象外 (high)**: `eval-regression.py` の comparator が baseline/current 双方を `.get('expected_output',{})` に slice するため、`expected_trigger`/`expected_no_trigger` の drift が不可視。case-1 の trigger を task-routing→intent-clarify に反転しても `exit 0 "no drift"` を実測。fields は baseline writer に追加されたが comparator が拡張されていない。
+2. **SKILL.md prose→case source drift が fixture-sync 素通り (high)**: prose の変更を読む L1 script が無く、case の `source:` field を消費するものも無い。task-routing の L2 run のみが検出しうる。
+3. **L2 coverage gap**: `eval-behavioral.py` は task-routing のみ (他 5 skill に baseline なし)、on-demand (どの gate にも未配線)、main baseline は no-verdict-line 率 20.8% + case-level fail 1 件。
+4. **eval doc-drift**: CLAUDE.md L30 が今も「eval は skill 本文を実行せず」(L2/behavioral 言及ゼロ)、test-strategy L51 が「L2 未実装 (#97)」— landed 済みの `eval-behavioral.py` (skill を実行) と矛盾。
+
+### 14.4 軌道と次に上げる鍵
+
+6 eval / 3 日の vector 推移: `[3/3/2/3/3/3]` → `[3/4/3/3/4/3]` → `[3/4/3/3/3/3]` → `[4/4/3/3/4/4]` → `[4/4/3/4/4/4]` → **`[4/4/3/4/4/5]`**。
+
+- **総括: 1 次元 (platform) が天井到達、1 次元 (eval) が恒常ボトルネック、4 次元が「健全だが 5 未満」の踊り場。**
+- **harness は defect-fixing の天井に接近**。platform=5・routing content は near-SoTA・delegate 実行路も修復済み。残る 5 の障壁は correctness defect でなく「harness が自分の routing/skill 挙動の正しさを証明する能力」= eval-flywheel の深化。
+- **次に上げる鍵 (最優先): eval 3→4** — `eval-regression.py` の comparator を `expected_output` slice でなく baseline_entry 全体を diff するよう広げ、trigger 契約を L1 で assert する (最小の code 変更で恒常ボトルネックが動く)。
+- **outer-loop 4→5**: board-Done 到達時に gh issue を自動 close する主体を作り Done≠closed を解消 (#107-#113 が board-Done ∧ gh-OPEN で固着)。forward path 自体は既に exercised。
+
+### 14.5 教訓の追加
+
+- **「2 つ直った」が全次元に波及する誘惑を切り分ける**。agents readable + push-CI green は両方 exercised な本物だが、効いたのは platform (junction 根絶) だけ。push-CI green の実体は非 eval の future-plans lint の spurious failure 停止で、eval に効く fixture-sync は直前 push でも既に success だった。**step-level で before/after を割らないと「2 defect 解消 → 複数次元 up」という過大評価に流れる。**
+- **監査 tool 自体が defect を隠す**。`gh project item-list` の default paging では最新 harness issue (#107-#118) が 1 ページ目から落ち、`--limit 300` で初めて Done≠closed 乖離が surface する。「解消した」の誤結論は naive query 由来。
+- **score theater を正しく拒否できた**。#118 (本番 cron を実 1 周させ forward 証跡を作る) は、人為的お膳立てが必要と判明し close。cron の本番稼働は 03:30Z の #116 bounce (実 board move) で既に自然実証済みだった。
