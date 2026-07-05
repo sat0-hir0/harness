@@ -43,6 +43,19 @@ def diff_dicts(baseline: dict, current: dict, path: str = "") -> list[str]:
     return diffs
 
 
+# baseline / current の両方から取り出して diff する契約 field。
+# input / skill / case_id / snapshot_id は identity / metadata なので除外する
+# (= input は test-strategy §4 で baseline と現在で意図的に食い違うため diff すると
+#  false drift になる)。 trigger 契約 (expected_trigger / expected_no_trigger) を
+# expected_output と並べて比較対象に含める (= trigger を反転しても回帰検出されない穴を塞ぐ)。
+CONTRACT_FIELDS = ("expected_trigger", "expected_no_trigger", "expected_output")
+
+
+def contract_view(entry: dict) -> dict:
+    """baseline_entry 形式の dict から契約 field だけを取り出す。"""
+    return {k: entry.get(k) for k in CONTRACT_FIELDS}
+
+
 def apply_override(skill: str, case: dict) -> str:
     """意図した diff を baseline に再固定し、 更新した snapshot_id を返す。"""
     entry = ec.baseline_entry(skill, case)
@@ -89,8 +102,8 @@ def main() -> int:
             if not bpath.exists():
                 missing_baseline.append(sid)
                 continue
-            baseline = ec.read_yaml(bpath).get("expected_output", {})
-            current = c.get("expected_output", {})
+            baseline = contract_view(ec.read_yaml(bpath))
+            current = contract_view(ec.baseline_entry(skill, c))
             struct_diff = diff_dicts(baseline, current)
 
             if not struct_diff:
