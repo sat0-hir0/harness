@@ -19,3 +19,8 @@ pre-push:
       # Fail the push when a skill/eval spawn context names an agent that has
       # no agents/<name>.md, or reintroduces the bare `reviewer` drift.
       run: python scripts/lint-agent-refs.py
+    case-source-lint:
+      # Verify each eval case's `source:` citation resolves to a real
+      # skills/<name>/SKILL.md file and an existing section anchor, so a
+      # SKILL.md header rename/removal that strands a case source is caught.
+      run: python scripts/check-case-source.py
