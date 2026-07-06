@@ -5,7 +5,7 @@
 ## 0. TL;DR
 
 - 現行 eval/ は **fixture 同期 diff** (= 手書き YAML 同士の比較) であり skill を一切実行しない。SKILL.md の prose 変更は無検証で通る (= eval・観測性 2/5 の根因)。この gate は fixture-sync lint へ改名して維持する (#88)。挙動 test へは拡張しない。
-- 挙動検証は **verdict-contract test** として最小導入する: task-routing の verdict 3 値のみを assert、runner は `claude -p` の薄い wrapper、N=3 多数決、held-out 2-3 case、**変更前 baseline 必須** (#97)。
+- 挙動検証は **verdict-contract test** として最小導入済み (= `eval/scripts/eval-behavioral.py`、#97 landed): task-routing の verdict 3 値のみを assert、runner は `claude -p` の薄い wrapper、N=3 多数決、held-out 2-3 case、**変更前 baseline 必須**。
 - verdict 境界に触れる skill 編集 (#85 / #92 / #98 / 圧縮 refactor) は behavioral baseline の取得を先行条件とする。name-only rename (= #81) は不要。#82 (= description 復元) は trigger 面を変えるため trigger-baseline 必須 (§9)。
 - 常設機構はすべて trigger / cost / kill criterion を持つ (§8)。hook 段には決定的 check のみを置き、LLM 実行は on-demand と PR の opt-in に限る。
 
@@ -48,7 +48,7 @@
 |---|---|---|---|---|---|
 | L0 static lint | case schema 崩れ (= 必須 field 欠落 / id 非昇順)、禁止語句 (check-future-plans.py) | 挙動全般 | regression 実行時の --validate / finish-task 内 | 秒 | 実装済 |
 | L1 fixture-sync lint (= 現 gate、#88 で改名) | baseline と cases/*.yaml の乖離 (= fixture の編集漏れ / 意図しない編集) | **skill の実挙動。SKILL.md prose 変更は素通り** | pre-push (SKILL.md / agents/*.md 変更時のみ発火) | 数秒 | 実装済 |
-| L2 behavioral verdict | SKILL.md 編集による verdict 変化、trigger 精度 (= expected_trigger の初 assert) | 判定理由の質、multi-turn 挙動 | on-demand (= SKILL.md の意図的変更の前後、§7) | run set あたり haiku < $2 / 5-15 分 (§8) | **未実装** (#97) |
+| L2 behavioral verdict | SKILL.md 編集による verdict 変化、trigger 精度 (= expected_trigger の初 assert) | 判定理由の質、multi-turn 挙動 | on-demand (= SKILL.md の意図的変更の前後、§7) | run set あたり haiku < $2 / 5-15 分 (§8) | 実装済 (= `eval/scripts/eval-behavioral.py`、#97 landed。 対象は task-routing のみ) |
 | L3 semantic judge | 構造 diff の意味的等価性 (= 言い換えか実質変更かの注釈) | 判定の正否 (= 注釈のみ、exit code 不変を維持) | on-demand --judge | local GPU (VRAM 競合注意) | 実装済 |
 
 L1 は L2 の代替ではない (= 検知対象が直交する)。L1 を挙動 test に拡張しない、が確定済の判断 (#88)。

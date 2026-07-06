@@ -27,7 +27,8 @@ universal な skill / agent / 設計 doc を 1 repo に集約し、 skillshare �
 - `agents/*.md` 変更 → 全 skill に fan-out (`--skill all`)。
 - skill / agent 無変更の push → skip (= exit 0)。
 - drift / baseline 欠落を検出したら push をブロック。 意図した変更なら `python eval/scripts/eval-baseline.py --skill all` で baseline 更新後に再 push。
-- eval は skill 本文を実行せず、 `eval/cases/` (手書き) と `eval/baseline/` の構造 diff (= fixture-sync lint)。
+- pre-push が回すのは L1 (= fixture-sync lint): skill 本文を実行せず、 `eval/cases/` (手書き) と `eval/baseline/` の構造 diff を取る。
+- L2 (= behavioral verdict-contract) は別レイヤー: `eval/scripts/eval-behavioral.py` が skill を `claude -p` で **実際に headless 実行** し、 task-routing の判定行から verdict を抽出して assert する。 pre-push には配線せず on-demand (= SKILL.md の意図的変更の前後) で人が起動する。 詳細は `docs/wip/test-strategy-2026-07-02.md` §4/§5。
 
 ## check-future-plans (= doc 規律)
 
