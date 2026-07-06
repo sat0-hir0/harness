@@ -2,22 +2,18 @@
 name: task-routing
 description: >-
   Routes any non-trivial development request to a verdict (Lead-direct / delegate-single /
-  delegate-slice) that the Lead MUST follow. ALWAYS invoke at the very first turn, BEFORE any Edit /
-  Write / Bash / sub-agent call, whenever the user asks to add, fix, change, refactor, implement, set
-  up, wire up, integrate, respond to, debug, or investigate code / docs / config / build / CI /
-  project state. Triggers include Japanese phrasings like
+  delegate-slice) the Lead MUST follow. ALWAYS invoke at the very first turn, BEFORE any Edit /
+  Write / Bash / sub-agent call, whenever the user asks to add, fix, implement, set up, wire up, or
+  handle code / docs / config / build / CI / project state. Triggers include Japanese phrasings like
   「実装して」「直して」「追加して」「入れて」「対応して」「セットアップ」「調べて」「足して」「動かして」「リファクタ」, English phrasings like "add X", "fix
   X", "set up X", "implement X", "wire X", "handle X", and any mention of file paths, function names,
   or build / test commands. SKIP for pure-info questions ("what is X?", "explain Y") with zero file
   writes / shell, for consult / ideation requests (use $intent-clarify instead), AND for read-only
   assess / audit / review requests ("評価して", "監査して", "レビューして", "assess this", "audit X",
-  "review X for Y") — these produce a report with zero file writes and route directly to qa-expert +
-  architect (+ security-auditor when security is in scope), not through this skill's verdict gate.
-  Skipping this is
-  the #1 source of misrouted work (= Lead-direct on tasks that should have been delegated, missed ADR
-  triggers, public-behaviour changes slipped past review). **OUTPUT CONTRACT**: every verdict MUST be
-  accompanied by a Y-trace 1-liner (= 採用根拠 + 棄却した代替 + 受け入れる trade-off) so the user can audit the
-  judgement without re-deriving it..
+  "review X for Y") — these route directly to qa-expert + architect (+ security-auditor when in
+  scope) as a report, not through this skill's verdict gate. Skipping this misroutes work (Lead-direct
+  on delegable tasks, missed ADR triggers, unreviewed public-behaviour changes). **OUTPUT CONTRACT**:
+  every verdict MUST carry a Y-trace 1-liner (= 採用根拠 + 棄却した代替 + 受け入れる trade-off).
 ---
 
 # Task routing
