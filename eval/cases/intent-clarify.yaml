@@ -38,7 +38,7 @@ cases:
     input: "docs ハンドオフ後の automation 流れを相談したい"
     expected_trigger: intent-clarify
     expected_no_trigger: [task-routing]
-    source: "skills/intent-clarify/SKILL.md Phase 3-2 (loop) / scope judgement"
+    source: "skills/intent-clarify/SKILL.md Step 1-1 (multiple lens 判断) / Step 1-2 (追加 lens 召喚) / Step 3-2 (明示 yes 確認)"
     expected_output:
       lens_count: multiple
       spawned_subagents_include: [technical-writer]
@@ -49,7 +49,7 @@ cases:
     input: "この API 設計、 このアプローチでいい?"
     expected_trigger: intent-clarify
     expected_no_trigger: [task-routing]
-    source: "skills/intent-clarify/SKILL.md Use when / scope judgement (single lens)"
+    source: "skills/intent-clarify/SKILL.md Use when / Step 1-1 (single lens 判断)"
     expected_output:
       lens_count: 1
       spawned_subagents: []   # context 短い、 Lead 単独
