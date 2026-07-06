@@ -220,7 +220,7 @@ boundary skill (= 例: `$issue-execute`) は起動時に label を確認し、 `
 GitHub プロジェクトの場合、 標準機能 (= Issue の Development sidebar、 `gh issue develop`) を使い、 命名規約を自作しない。
 
 - branch 名: `<issue-number>-<title-kebab>` (= GitHub 自動生成)
-- worktree path: branch checkout 時の path
+- worktree path: Issue 専用 worktree `~/code/.worktrees/<repo>/<issue-number>` (= メイン clone への checkout ではなく、 Issue 番号ごとに分離した worktree に展開する。 同一 repo で複数 Issue が同時着地しても衝突しない)
 - session ID: Claude session が発行する ID
 - 紐付け証跡: boundary skill が session 開始時に Issue コメントとして 「session ID / branch / worktree path」 を投稿
 
@@ -295,9 +295,17 @@ boundary skill (= 例: `$prepare-uat`) が着地させた要求を、 別の sch
 
 判定ロジックが信頼できるまで `DRY_RUN=true` で起票。 verdict を Issue コメントで報告するだけ、 status は動かさない。 cron 判定が実際の前進 / 差し戻しと一致することを確認してから `false` へ flip。
 
-### worktree 継続性
+### worktree ライフサイクル (= 作成 / 保持 / 削除の全体)
 
-未達で Ready に差し戻しても **worktree は破棄しない**。 再 pick した session が repo state (= Resume 戦略 B、 §8) から現状を復元して続きを進められる。 差し戻しは 「やり直し」 ではなく 「未完を Ready に戻して継続」。
+Issue 専用 worktree (`~/code/.worktrees/<repo>/<N>`、 §10) は 3 つの局面を持つ。 これまで「残す (= 保持)」局面しか明記されておらず、 削除主体が存在しないまま放置される leak の温床になっていたため、 ライフサイクル全体をここに固定する:
+
+- **作成**: `$issue-execute` が Phase 2 (branch 作成) で worktree を作る (= メイン clone には checkout せず、 Issue 番号ごとに分離した worktree に展開する)。
+- **保持 (= 継続性)**: bounce (= Completion Check → Ready 差し戻し) 時、 **worktree は破棄しない**。 再 pick した session が repo state (= Resume 戦略 B、 §8) から現状を復元して続きを進められる。 差し戻しは 「やり直し」 ではなく 「未完を Ready に戻して継続」。
+- **削除**: **Done 確定時**に worktree を撤去するのが設計上の終端。 その主体は `#122` (board-Done 到達時の gh issue 自動 close routine) を想定する (= Done → close の 1 イベントに 「gh issue close」 と 「worktree 削除」 を束ねる)。 **ただし現時点で削除は自動化されていない**: `#122` の routine 本体は未 land であり、 その現行 draft の Boundary は 「worktree / branch を削除しない」 と明記している。 削除主体を持たせるには `#122` 側で Boundary を反転する必要がある (= `$issue-execute` 側の worktree 化 (`#129`) と `#122` 側の削除実装は別 land)。
+
+この 3 局面のうち削除だけが機構として未実装であり、 「残す」 とだけ書かれた記述は "いつまで残すか" の終端を持たない leak 予備軍だった。 削除の設計上の終端は Done 確定だが、 その自動化は `#122` に依存する。
+
+> **leak window の注意** (= `#129` land 〜 `#122` 削除実装まで): worktree 化 (`#129`) が land すると `$issue-execute` は Issue ごとに worktree を作り始めるが、 削除主体 (`#122`) が land するまでは **Done 後も worktree が `~/code/.worktrees/<repo>/<N>` に残り続ける** (= 溜まる)。 この期間は **人間が手動で `git worktree remove` するか `#122` の land を待つ**。 溜まっても機能的な害は無い (= 新規 Issue は別 `<N>` の worktree を使うので衝突しない) が、 ディスクとリストの見通しは悪化する。 `#122` の land で解消する。
 
 ## 14. session 透明性の規約 (= plan / wave 変動を外部記録に残す)
 
