@@ -24,6 +24,7 @@ description: >-
 
 - slice plan (= wave の順序付きリスト) を出力する。すべての wave は独立して UAT 可能でなければならない。
 - ユーザーには見えない deliverable しか持たない wave は **wave ではない**。次の wave とマージするか、検証 surface (log / debug CLI / dump コマンド) を追加する。
+- 各 wave は **既存製品からの入口 (navigation)** を明示する。「機能は作ったが到達導線が無い」 wave は orphan であり、UAT 不能 wave と同格に扱う。入口が別 wave / 別 feature に乗る場合は blocked-by で明示する。
 - slice plan を作るだけ。本 skill でコードは書かない。
 
 ## Phase 1: Understand
@@ -95,6 +96,17 @@ verdict mapping (= `$task-routing` Step 2-1 が参照): XS / S / M → `delegate
 - テスト名 + その evidence がユーザーに「OK」と言わせるに足りる。
 
 **「基盤を作った、次の wave で見えるようになる」は wave として無効。** 除外して次の wave とマージする。
+
+**検証導線は製品導線ではない。** dump CLI / debug log / 隠しフラグは wave を UAT 可能にするが、それ自体はエンドユーザーが製品から機能に到達する導線ではない。foundation wave が検証 surface だけで valid になっても、その機能を製品 UI から到達可能にする責務は消えない。到達導線は Step 2-5 で別途確定する。
+
+### Step 2-5: Navigation (= 既存製品からの入口) を確定する
+
+- **For each wave**: この wave の deliverable に、実行中の製品 UI からユーザーが到達する導線を1つ特定する (= 既存メニュー項目 / パレットコマンド / ボタン / ショートカット等)。
+- **Decide**: 入口がこの縦スライスに収まらない場合、以下の3ケースに分岐する:
+  - **相互依存** (= 入口とゆき先が両方ないと UAT できない) → 入口を機能 wave に同居させる。分割しない。
+  - **器が未実装** (= パレット / メニュー自体がまだ無い) → 最小の暫定入口 (= 隠しコマンド / 固定ボタン等) を wave に含め、正式な入口が未整備である旨を負債として wave に明示記録する。
+  - **横断共有インフラ** (= パレットのように全機能の共通入口) → 入口の surface を別 feature に切り出し、この wave を blocked-by でその feature にぶら下げる。
+- **Stop on**: 3ケースのどれにも当てはめられず入口を確定できない wave は surface する。黙って plan に残さない。
 
 ## Phase 3: Map
 
@@ -170,6 +182,7 @@ same-model review (= 生成したモデル自身と同系の reviewer 系 agent 
   - when: <user action>
   - then: <observable>
   - pass: <criterion>
+- Navigation: <既存製品からの入口 = メニュー項目 / パレットコマンド / ボタン / ショートカット、または「別 feature に blocked-by」>
 - Files (likely): <paths>
 - Size: S/M/L
 - blocked-by: none / Wave X / unmerged Y
@@ -197,6 +210,7 @@ same-model review (= 生成したモデル自身と同系の reviewer 系 agent 
 ## Boundary
 
 - ユーザーには見えない deliverable の wave を **書かない**。基盤作業は付属の検証 surface がある場合のみ OK。
+- **入口 (navigation) の無い機能 wave を書かない。** 「作ったが実行中の製品から到達できない」 orphan feature は wave として無効。入口が別 wave / 別 feature に乗るなら blocked-by で明示する (= Step 2-5 参照)。
 - wave マージから flag 昇格を **自動導出しない**。Flag 昇格はプロダクト判断。
 - 外部コントリビューターに本 skill を **強制しない**。これは Lead のワークフロー。コントリビューターの PR は対象プロジェクトの `CONTRIBUTING.md` に従う。
 - 複数の異なる判断を 1 つの ADR にまとめ**ない**。ADR 1 つ = 判断 1 つ (= プロジェクトの `$propose-adr` Boundary を参照)。
@@ -255,6 +269,7 @@ Add a left-sidebar tree of the workspace, click-to-open, gitignore-aware, async-
 #### Wave 1: Walker + dump CLI (基盤、デバッグ surface による UAT)
 - UAT: `cargo run --example dump-walk ./docs` が見つかった `.md` とディレクトリをすべて出力する
 - pass: 既知ファイルがすべて現れ、.git/ がデフォルトで除外される
+- Navigation: 正式なサイドバー UI が未実装のため暫定入口は `dump-walk` example の直接実行 (= 検証導線)。製品導線としてのサイドバーは別 wave が担い、この wave 単独では正式入口が未整備の負債。
 - Files: `crates/limn-service/src/vault/explorer.rs`, `crates/limn-service/examples/dump-walk.rs`
 - Size: S
 - blocked-by: none
@@ -262,6 +277,7 @@ Add a left-sidebar tree of the workspace, click-to-open, gitignore-aware, async-
 #### Wave 2: サイドバー UI シェル (= 空ツリーを描画)
 - UAT: `cargo run -p limn-ui -- ./docs` で左ペインが表示される (空でも可)
 - pass: 左カラムが 260 px で見えた状態でウィンドウが開く
+- Navigation: アプリ起動時に左ペインとして常設表示 (= 専用トグルはまだ無く、常時表示が入口)
 - Files: `crates/limn-ui/src/sidebar.rs`, `crates/limn-ui/src/root_view.rs`
 - Size: S
 - blocked-by: none (Wave 1 と並列)
@@ -269,30 +285,35 @@ Add a left-sidebar tree of the workspace, click-to-open, gitignore-aware, async-
 #### Wave 3: Walker → サイドバー配線 (= ツリーにファイルを表示)
 - UAT: 同じ起動でツリーにファイルが表示される (= 未ソート、フラット)
 - pass: 既知ファイルがサイドバーに見える
+- Navigation: Wave 2 と同じ常設サイドバーがそのまま入口
 - Size: S
 - blocked-by: Wave 1, Wave 2
 
 #### Wave 4: フォールディング (= ▸/▾)
 - UAT: フォルダ行をクリック → 子が隠れる; 再度クリック → 再表示
 - pass: クリックで表示が切り替わる
+- Navigation: サイドバーのフォルダ行クリックが入口 (= Wave 3 の入口に相互依存する操作の追加)
 - Size: S
 - blocked-by: Wave 3
 
 #### Wave 5: クリックして開く (= エディタ入れ替え)
 - UAT: .md 行をクリック → 右ペインにそのファイルが表示される
 - pass: タイトルと内容が一致する
+- Navigation: サイドバーのファイル行クリックが入口 (= Wave 3 の入口に相互依存する操作の追加)
 - Size: S
 - blocked-by: Wave 3
 
 #### Wave 6: Gitignore + 非 md ファイル
 - UAT: `.gitignore` に載ったエントリが除外される; 非 .md ファイルは disabled スタイルで表示される
 - pass: secret.txt が消え、image.png がグレーアウト表示される
+- Navigation: 既存のサイドバー表示そのもの (= 新規入口なし、表示内容のフィルタリング)
 - Size: M
 - blocked-by: Wave 1
 
 #### Wave 7: 非同期ノンブロッキングスキャン (= 1000+ ファイル)
 - UAT: 大規模ワークスペースを開いてもスキャン中に UI がフリーズしない; 行がインクリメンタルに出現する
 - pass: ウォーカー実行中もウィンドウがインタラクティブであり続ける
+- Navigation: 既存のサイドバー表示そのもの (= 新規入口なし、スキャン挙動の改善)
 - Size: M
 - blocked-by: Wave 3
 

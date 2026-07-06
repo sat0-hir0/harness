@@ -55,3 +55,14 @@ cases:
     expected_output:
       action: stop          # 1 wave での計画は拒否
       must_slice: yes
+
+  - id: 6
+    input: "機能を作ったが実行中の製品から到達できない wave を計画に入れたい"
+    expected_trigger: task-slicing
+    expected_no_trigger: [commit-message]
+    source: "skills/task-slicing/SKILL.md Phase 2 Step 2-5 / Boundary (navigation)"
+    expected_output:
+      requires_navigation: yes
+      orphan_wave_valid: no
+      navigation_cases: [co-located, minimal-entry-with-debt, cross-cutting-surface]
+      verification_is_not_navigation: yes

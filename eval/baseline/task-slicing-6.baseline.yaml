@@ -1,0 +1,15 @@
+case_id: 6
+expected_no_trigger:
+- commit-message
+expected_output:
+  navigation_cases:
+  - co-located
+  - minimal-entry-with-debt
+  - cross-cutting-surface
+  orphan_wave_valid: false
+  requires_navigation: true
+  verification_is_not_navigation: true
+expected_trigger: task-slicing
+input: 機能を作ったが実行中の製品から到達できない wave を計画に入れたい
+skill: task-slicing
+snapshot_id: task-slicing-6
