@@ -19,3 +19,14 @@ pre-push:
       # Fail the push when a skill/eval spawn context names an agent that has
       # no agents/<name>.md, or reintroduces the bare `reviewer` drift.
       run: python scripts/lint-agent-refs.py
+    future-plans:
+      # Doc-discipline lint: reject a push whose commits introduce forbidden
+      # milestone / Wave / Phase / future-tense strings. The CI twin
+      # (eval-gate.yml) is PR-only because github.base_ref is empty on push,
+      # which would make `git diff origin/..HEAD` malformed — see #117. That
+      # left direct-to-main pushes (which never open a PR and skip finish-task)
+      # with no guard at all. Here origin/main is a concrete local ref that
+      # always resolves, so `origin/main..HEAD` cleanly scopes the check to the
+      # commits being pushed. On a feature-branch push it diffs branch-vs-main
+      # (a superset), which stays correct because the lint is idempotent.
+      run: python scripts/check-future-plans.py --base origin/main
