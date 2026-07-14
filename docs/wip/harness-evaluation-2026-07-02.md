@@ -376,3 +376,64 @@ Epic #106 の残課題を全 merge した直後に採点。vector = **[4/4/3/4/4
 - **「2 つ直った」が全次元に波及する誘惑を切り分ける**。agents readable + push-CI green は両方 exercised な本物だが、効いたのは platform (junction 根絶) だけ。push-CI green の実体は非 eval の future-plans lint の spurious failure 停止で、eval に効く fixture-sync は直前 push でも既に success だった。**step-level で before/after を割らないと「2 defect 解消 → 複数次元 up」という過大評価に流れる。**
 - **監査 tool 自体が defect を隠す**。`gh project item-list` の default paging では最新 harness issue (#107-#118) が 1 ページ目から落ち、`--limit 300` で初めて Done≠closed 乖離が surface する。「解消した」の誤結論は naive query 由来。
 - **score theater を正しく拒否できた**。#118 (本番 cron を実 1 周させ forward 証跡を作る) は、人為的お膳立てが必要と判明し close。cron の本番稼働は 03:30Z の #116 bounce (実 board move) で既に自然実証済みだった。
+
+## 15. 第 7 回評価 (2026-07-06、残課題 wave の merge 反映後)
+
+第 4-6 回で「次に上げる鍵」とした 2 項目 (eval 3→4 の trigger 契約 assert、outer-loop 4→5 の Done≠closed 解消) が実装・merge された後の再評価。手法は 5 次元 (前回 defect / 今回変更 / 多層防御 / 自律運用 / board hygiene) を qa-expert で並列 assess → high/critical finding を敵対的検証 → confirmed のみ roadmap 化。実 HEAD `146268d`。
+
+### 15.1 このサイクルで land した変更
+
+- **#127**: `issue-execute` に product→repo 解決 (Issue 操作=backlog 固定 / コード操作=着地 repo、cross-repo branch は `gh --branch-repo`)。「入口集約 × 着地分散」を §4.1 に明文化。
+- **#129**: `issue-execute` を git worktree ベース化 (`~/code/.worktrees/<repo>/<N>`、`--name` 決定論命名 + stdout 捕捉)。同一 repo 同時着地の衝突を解消。
+- **#122**: `done-close-routine` 新設 (Done→gh close 自動化 + #129 の worktree cleanup 兼任、cygpath -u で drive形/msys形を統一する安全弁)。outer-loop 4→5 の鍵。
+- **#119**: `eval-regression.py` の comparator を trigger 契約まで拡張 (`CONTRACT_FIELDS` + `contract_view()`)。eval 3→4 の鍵。
+
+### 15.2 前回 5 大 defect の決算
+
+| defect | 判定 | 証跡 |
+|---|---|---|
+| agent 名 drift | 解消 | `lint-agent-refs.py` 実装・pre-push 配線・pass |
+| YAML # 切断 | 解消 | `check-frontmatter-yaml.py` 実装・pass (task-routing description は非 blocking warning 圏に残るが実害なし) |
+| needs-fix 不在 | 解消 | label 定義 + 過去実績確認 |
+| eval 非実行 | 改善 | #119 で trigger 契約の穴を code 変異テストで fix 実証 (`--skill all` = 30/30 pass, drift 0)。L2 behavioral は実装済みだが今回未再実行 (CI 未配線は API key 回避で明示、運用規約上妥当) |
+| Done≠merged | **問題設定の縮小** | §16 ADR で「Done⇒PR merged」保証を意図的に放棄し「Done⇒gh closed」のみに絞った。`done-close-routine` が board の「Done かつ OPEN」乖離を実データでゼロにした。PR merge の最終責任は人間側へ明示的に戻る |
+
+### 15.3 landed but unproven (= 今サイクルの共通弱点)
+
+**4 変更すべてコード/ロジックは正しく実装され main に land 済みだが、実運用で発火した証跡 (exercised) はゼロ**:
+
+- #122 done-close: cron enabled (`3-59/15`) だが自動 close の形跡なし。直近の close は全て人間の手動一括操作。
+- #129 worktree 化: skill 本文は実装済みだが、実 session (#72/#119/#122) は全てこのコミット以前に開始し**旧パス (main clone / `backlog-wt-N`) で発火**。
+- #127 repo 解決: land 済みだが exercised 未確認。
+- #119 eval trigger: 4 変更中**唯一 exercised に近い** (code 変異テストで fix が機能することを実地確認、Lead の UAT でも裏取り)。
+
+→ **多層防御の implemented は依然 2/12** (層1 役割分離 / 層12 UAT 品質)。#122/#129 は score theater 回避のため層数の格上げに算入しない (exercised でないため)。
+
+### 15.4 confirmed defect と roadmap 判定
+
+敵対的検証で high の headline severity を再評価した結果、機能破綻レベルの confirmed defect は無し。以下は事実 confirmed だが実質 severity と対応方針:
+
+| defect | 実質 severity | roadmap | 根拠 |
+|---|---|---|---|
+| Back pressure gate (層2) が prompt-text-only | medium | 様子見 | test 基盤の無い harness 本体に汎用 gate は投資対効果低。test は着地 repo (limn=Rust / ow-my-coach=TS) の責務 |
+| running ラベル孤児 #72 (Ready のまま running+long-running 残留) | low-med | 即対応 | 真因は人間の give-up path (In Progress→Ready drag) が label/branch を掃除しない + pick 除外が `needs-human` のみで stale running を見ない latent gap。実害は intermittent な pick 空振り (self-limiting)。ラベル手動剥がし 1 分 + 設計修正は別 spike |
+| backlog/CLAUDE.md L37 の stale drift + dangling §13 参照 | low | 即対応 | 「#122 削除実装は未 land」と誤記 (実際は land 済み、5 時間差で追い越された stale) + 「harness §13 leak window」が dangling (§13 は真逆の記述)。descriptive であり directive でないため cleanup パイプラインは壊れない。1 行修正 |
+| 旧命名 worktree 5 件残存 + `.worktrees/harness/119-uat` 空 dir | medium | 様子見 | 安全弁が仕様通り旧命名を fail-safe skip。過渡期残骸で cron 挙動に波及なし。手動 remove で足りる |
+| done-close の scheduled-tasks MCP runtime prompt 同期未確認 | medium | spike 先行 | dotconfig の絶対ルール (SKILL.md 編集後 `update_scheduled_task` 同期) が file-based 評価では検証不能。過去 #6 で同期漏れが leftover として実発生。次サイクルで実機 spike |
+
+### 15.5 前回「未確定」項目の決算
+
+- **#113 コスト会計**: 未確定でなく**確定済み**。`cost-accounting-2026-07-03.md` に実測値。
+- **#109 DRY_RUN 切替基準**: 確定済み。completion-check の `DRY_RUN=false` 化は 8/8 一致の実績で本番化済み。
+
+### 15.6 軌道と次に効く 1 手
+
+- **総括: static な整合性は前回より高い** (Done≠OPEN ゼロ、cron 7 個の位相衝突なし、running ライフサイクル整合、eval 30/30 pass)。だが**今サイクルの品質判断の唯一の空白は「実装は正しいが exercised 証跡ゼロ」に集約される**。
+- **次に効く 1 手: 「次回 cron 発火サイクルの実機観測」を 1 回通す**。(a) done-close が実 Done Issue を close + worktree 撤去する瞬間、(b) #129 worktree 化が次の実 pick で `~/code/.worktrees/<repo>/<N>` を実際に使うか、(c) scheduled-tasks MCP の runtime prompt が dotconfig source と一致するか (#6 同期漏れ再発チェック)。この 3 点を 1 セッションで潰せば、防御層の格上げを**初めて証跡ベースで主張できる**。Ready の product:harness Issue (#120-126) を 1 件流せば (a)(b) は自然に達成される。
+- **本質的な設計変化**: defect4 の「問題設定の縮小」= 「board が Done でも main に merge されているとは限らない」を運用者が常に意識する前提へ。個人開発の統制粒度としては妥当だが、Done の意味が変わった。
+
+### 15.7 教訓の追加
+
+- **「landed」と「exercised」を厳格に割る**。今サイクルは 4 変更が全て merge されたが、実運用で発火したのは #119 のみ (しかも code 変異テストで、本番 cron 経由ではない)。merge を capability の前進と数えると過大評価になる。防御層の格上げは exercised を条件にする (前回 §13.2 の踏襲を今回も適用)。
+- **敵対的検証が high の過大評価を正した**。board-hygiene #72 と new-changes 2 件は事実 confirmed だが、headline の因果 (「Ready で stuck 警告が出続け他の pick を阻害」) は反証され、実害は doc-accuracy と intermittent な空振りに限定。severity は敵対的検証を通してから確定する。
+- **read-only 評価の原理的限界を明示する**。cron の runtime prompt 同期・実発火・worktree 実使用は file-based では埋められない。「実機 spike が要る」と正直に marking し、静的整合性の高さで exercised を代替しない。
