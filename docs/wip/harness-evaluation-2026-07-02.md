@@ -376,3 +376,151 @@ Epic #106 の残課題を全 merge した直後に採点。vector = **[4/4/3/4/4
 - **「2 つ直った」が全次元に波及する誘惑を切り分ける**。agents readable + push-CI green は両方 exercised な本物だが、効いたのは platform (junction 根絶) だけ。push-CI green の実体は非 eval の future-plans lint の spurious failure 停止で、eval に効く fixture-sync は直前 push でも既に success だった。**step-level で before/after を割らないと「2 defect 解消 → 複数次元 up」という過大評価に流れる。**
 - **監査 tool 自体が defect を隠す**。`gh project item-list` の default paging では最新 harness issue (#107-#118) が 1 ページ目から落ち、`--limit 300` で初めて Done≠closed 乖離が surface する。「解消した」の誤結論は naive query 由来。
 - **score theater を正しく拒否できた**。#118 (本番 cron を実 1 周させ forward 証跡を作る) は、人為的お膳立てが必要と判明し close。cron の本番稼働は 03:30Z の #116 bounce (実 board move) で既に自然実証済みだった。
+
+## 15. 第 7 回評価 (2026-07-06、残課題 wave の merge 反映後)
+
+第 4-6 回で「次に上げる鍵」とした 2 項目 (eval 3→4 の trigger 契約 assert、outer-loop 4→5 の Done≠closed 解消) が実装・merge された後の再評価。手法は 5 次元 (前回 defect / 今回変更 / 多層防御 / 自律運用 / board hygiene) を qa-expert で並列 assess → high/critical finding を敵対的検証 → confirmed のみ roadmap 化。実 HEAD `146268d`。
+
+### 15.1 このサイクルで land した変更
+
+- **#127**: `issue-execute` に product→repo 解決 (Issue 操作=backlog 固定 / コード操作=着地 repo、cross-repo branch は `gh --branch-repo`)。「入口集約 × 着地分散」を §4.1 に明文化。
+- **#129**: `issue-execute` を git worktree ベース化 (`~/code/.worktrees/<repo>/<N>`、`--name` 決定論命名 + stdout 捕捉)。同一 repo 同時着地の衝突を解消。
+- **#122**: `done-close-routine` 新設 (Done→gh close 自動化 + #129 の worktree cleanup 兼任、cygpath -u で drive形/msys形を統一する安全弁)。outer-loop 4→5 の鍵。
+- **#119**: `eval-regression.py` の comparator を trigger 契約まで拡張 (`CONTRACT_FIELDS` + `contract_view()`)。eval 3→4 の鍵。
+
+### 15.2 前回 5 大 defect の決算
+
+| defect | 判定 | 証跡 |
+|---|---|---|
+| agent 名 drift | 解消 | `lint-agent-refs.py` 実装・pre-push 配線・pass |
+| YAML # 切断 | 解消 | `check-frontmatter-yaml.py` 実装・pass (task-routing description は非 blocking warning 圏に残るが実害なし) |
+| needs-fix 不在 | 解消 | label 定義 + 過去実績確認 |
+| eval 非実行 | 改善 | #119 で trigger 契約の穴を code 変異テストで fix 実証 (`--skill all` = 30/30 pass, drift 0)。L2 behavioral は実装済みだが今回未再実行 (CI 未配線は API key 回避で明示、運用規約上妥当) |
+| Done≠merged | **問題設定の縮小** | §16 ADR で「Done⇒PR merged」保証を意図的に放棄し「Done⇒gh closed」のみに絞った。`done-close-routine` が board の「Done かつ OPEN」乖離を実データでゼロにした。PR merge の最終責任は人間側へ明示的に戻る |
+
+### 15.3 landed but unproven (= 今サイクルの共通弱点)
+
+**4 変更すべてコード/ロジックは正しく実装され main に land 済みだが、実運用で発火した証跡 (exercised) はゼロ**:
+
+- #122 done-close: cron enabled (`3-59/15`) だが自動 close の形跡なし。直近の close は全て人間の手動一括操作。
+- #129 worktree 化: skill 本文は実装済みだが、実 session (#72/#119/#122) は全てこのコミット以前に開始し**旧パス (main clone / `backlog-wt-N`) で発火**。
+- #127 repo 解決: land 済みだが exercised 未確認。
+- #119 eval trigger: 4 変更中**唯一 exercised に近い** (code 変異テストで fix が機能することを実地確認、Lead の UAT でも裏取り)。
+
+→ **多層防御の implemented は依然 2/12** (層1 役割分離 / 層12 UAT 品質)。#122/#129 は score theater 回避のため層数の格上げに算入しない (exercised でないため)。
+
+### 15.4 confirmed defect と roadmap 判定
+
+敵対的検証で high の headline severity を再評価した結果、機能破綻レベルの confirmed defect は無し。以下は事実 confirmed だが実質 severity と対応方針:
+
+| defect | 実質 severity | roadmap | 根拠 |
+|---|---|---|---|
+| Back pressure gate (層2) が prompt-text-only | medium | 様子見 | test 基盤の無い harness 本体に汎用 gate は投資対効果低。test は着地 repo (limn=Rust / ow-my-coach=TS) の責務 |
+| running ラベル孤児 #72 (Ready のまま running+long-running 残留) | low-med | 即対応 | 真因は人間の give-up path (In Progress→Ready drag) が label/branch を掃除しない + pick 除外が `needs-human` のみで stale running を見ない latent gap。実害は intermittent な pick 空振り (self-limiting)。ラベル手動剥がし 1 分 + 設計修正は別 spike |
+| backlog/CLAUDE.md L37 の stale drift + dangling §13 参照 | low | 即対応 | 「#122 削除実装は未 land」と誤記 (実際は land 済み、5 時間差で追い越された stale) + 「harness §13 leak window」が dangling (§13 は真逆の記述)。descriptive であり directive でないため cleanup パイプラインは壊れない。1 行修正 |
+| 旧命名 worktree 5 件残存 + `.worktrees/harness/119-uat` 空 dir | medium | 様子見 | 安全弁が仕様通り旧命名を fail-safe skip。過渡期残骸で cron 挙動に波及なし。手動 remove で足りる |
+| done-close の scheduled-tasks MCP runtime prompt 同期未確認 | medium | spike 先行 | dotconfig の絶対ルール (SKILL.md 編集後 `update_scheduled_task` 同期) が file-based 評価では検証不能。過去 #6 で同期漏れが leftover として実発生。次サイクルで実機 spike |
+
+### 15.5 前回「未確定」項目の決算
+
+- **#113 コスト会計**: 未確定でなく**確定済み**。`cost-accounting-2026-07-03.md` に実測値。
+- **#109 DRY_RUN 切替基準**: 確定済み。completion-check の `DRY_RUN=false` 化は 8/8 一致の実績で本番化済み。
+
+### 15.6 軌道と次に効く 1 手
+
+- **総括: static な整合性は前回より高い** (Done≠OPEN ゼロ、cron 7 個の位相衝突なし、running ライフサイクル整合、eval 30/30 pass)。だが**今サイクルの品質判断の唯一の空白は「実装は正しいが exercised 証跡ゼロ」に集約される**。
+- **次に効く 1 手: 「次回 cron 発火サイクルの実機観測」を 1 回通す**。(a) done-close が実 Done Issue を close + worktree 撤去する瞬間、(b) #129 worktree 化が次の実 pick で `~/code/.worktrees/<repo>/<N>` を実際に使うか、(c) scheduled-tasks MCP の runtime prompt が dotconfig source と一致するか (#6 同期漏れ再発チェック)。この 3 点を 1 セッションで潰せば、防御層の格上げを**初めて証跡ベースで主張できる**。Ready の product:harness Issue (#120-126) を 1 件流せば (a)(b) は自然に達成される。
+- **本質的な設計変化**: defect4 の「問題設定の縮小」= 「board が Done でも main に merge されているとは限らない」を運用者が常に意識する前提へ。個人開発の統制粒度としては妥当だが、Done の意味が変わった。
+
+### 15.7 教訓の追加
+
+- **「landed」と「exercised」を厳格に割る**。今サイクルは 4 変更が全て merge されたが、実運用で発火したのは #119 のみ (しかも code 変異テストで、本番 cron 経由ではない)。merge を capability の前進と数えると過大評価になる。防御層の格上げは exercised を条件にする (前回 §13.2 の踏襲を今回も適用)。
+- **敵対的検証が high の過大評価を正した**。board-hygiene #72 と new-changes 2 件は事実 confirmed だが、headline の因果 (「Ready で stuck 警告が出続け他の pick を阻害」) は反証され、実害は doc-accuracy と intermittent な空振りに限定。severity は敵対的検証を通してから確定する。
+- **read-only 評価の原理的限界を明示する**。cron の runtime prompt 同期・実発火・worktree 実使用は file-based では埋められない。「実機 spike が要る」と正直に marking し、静的整合性の高さで exercised を代替しない。
+
+## 16. 第 8 回評価 (2026-07-20、評価手法のメタ評価を適用 + 14 日無人運用の自然実験)
+
+第 7 回 (07-06) と本 run の間に、評価プロセス自体のメタ評価を実施した (= `docs/wip/harness-meta-evaluation-2026-07-20.md`。過去 7 run の信頼性を H1-H5 で監査)。本 run はその改善提案を適用した初の評価。加えて 07-06 以降 14 日間は評価が停止し cron のみが走ったため、この期間を無人運用の自然実験として監査した。手法: 24 agents (= ledger 機械抽出 1 / evidence probe 7 (うち自由探索 2 + 14 日 runtime 監査 + security 構造監査) / 6 次元 judge / 対称 verify 6 / 独立 2 vector + 突合 / 盲点批評)、subagent 計 ~246 万 token、約 45 分。実 HEAD は評価時 main = `101b6c0`。
+
+### 16.1 適用したメタ評価提案 (= 手法改革の開示)
+
+| 提案 | 適用内容 |
+|---|---|
+| 脱結論化 CTX (提案 1) | Lead CTX から RESOLVED / VERIFIED / 上げ候補名指しを排除。過去 doc の記述は「主張」として渡し、採点に使う場合は自力 spot-check を必須化 |
+| 機械台帳 (提案 5) | 持ち越し項目を過去 2 doc から severity 問わず機械抽出 (= 40 件、Lead の手選び廃止)。run 7 型の無音脱落を構造的に防止 |
+| 旧台帳決算 (提案 6) | run 7 のスコア廃止で未決算だった繰延 (= eval 3→4 予約等) を本 run で全件決算 |
+| transcript 経路 (提案 2) | exercised 判定に cron transcript 探索を必須化 (= 過小計上の防止) |
+| 対称 verify (提案 10) | verify に過小方向 (= proven な前進の見落とし) 検査を新設 |
+| 2 判断制 (提案 12) | 最終 vector を独立 2 判断 + 突合で確定 |
+| script 保全 (提案 4) | 評価 workflow script 6 本を `docs/wip/eval-workflow-scripts/` に保全 |
+
+### 16.2 スコア (= landed-state vector)
+
+**vector = [context 3 / routing 4 / eval 4 / outer-loop 4 / process 3 / platform 4]**。独立 2 判断が全 6 次元で一致 (= disputes 0)。run 6 `[4/4/3/4/4/5]` からの delta: **eval +1 / context -1 / process -1 / platform -1**。
+
+| 次元 | run 6 | 8th | 変動根拠 (= 全て自力 command 再現) |
+|---|---|---|---|
+| context 経済性 | 4 | **3** | 悪化 4 本柱が全て CONFIRMED: directive doc の stale が稼働中の自動化と逆内容 (= 修正 issue すら不在) / 無人 loop に context short-circuit がなく no-op が O(board) で燃える / description 予算超過 WARN が 14 日 live / memory 鮮度判定が placebo で汚染。供給系 (= 3 層 sha256 parity / §0 搭載 / eval green) 無傷で 2 は回避 |
+| routing 信頼性 | 4 | 4 | 初の無人 end-to-end exercised (= `f05e64d9` の完全 Y-trace) + L19 決算漏れ回収が上げ材料だが、bypass 3/7 (= 中核契約「ALWAYS invoke BEFORE Edit/Write」の silent 違反、検知機構なし) が 5 を阻む。bypass 対象は XS/S の docs/config で misroute 実害ゼロのため 3 も不成立 |
+| eval・観測性 | 3 | **4** | 6 run 据え置きの中核疑問「gate は本番で発火するか」に直接回答: pre-push 実ブロック 2 回 (= `d2c6df8e` の "push blocked" 実文字列) + 変異 kill (= regressions 1 / exit 1) + 31/31 pass。**L03 の予約上げ幅を正式決算** (= run 7 が無音消却したもの)。5 を阻む 3 盲点 (= source drift 素通り / --override 履歴非永続 / lineage 保全不全) は両 verify が独立再現 |
+| 外側ループ自動化 | 4 | 4 | L04 完全成立 (= done-close の自動 close を transcript で確認) + #127/#129 の full lifecycle exercised で機構面は 5 相当。だが 14 日自然実験が露呈した機能面 high 4 件 (= escalation 誤診 / CI-green deadlock / backoff 不在 / 着地経路断絶) で相殺。「人間不在自体は減点しない」原則を適用 (= cron は正しく停止・通知、境界外 mutation 0) |
+| process 重量 vs 価値 | 4 | **3** | 窓境界の会計に依存しない構造欠陥 3 点 (= CI-green deadlock で実装 chain を 2 回廃棄 / kill criterion が自己測定不能 / 飢餓時 backoff 不在) が run 6 に無かった exercised な負の証跡 |
+| platform 適合 | 5 | **4** | run 6 の 5 根拠 4 点は再実測で全て復元 = 劣化ではない。下げ主因は run 6 当時**不可視だった**新規確定: 配布計装 (= CLAUDE_MEMORY_AUTOMATED) が設計時点から placebo (= automated marker 0/456) + §0 配備不均一 + 破壊操作 denylist 不在。機能不全が memory 計装層に限局する事実が 3 を防ぐ |
+
+vector 推移: `[3/3/2/3/3/3]` → … → run 6 `[4/4/3/4/4/5]` → **8th `[3/4/4/4/3/4]`**。**score theater なし**: eval の上げは実ブロック証跡、context/process/platform の下げは 14 日運用が露呈した exercised な負の証跡に基づく。
+
+### 16.3 台帳の全件決算 (= 提案 5/6 の成果、無音脱落ゼロ)
+
+機械抽出した 40 件 (L01-L40) を全件決算: **回収 14 / 残存 18 / 繰延 7 / 消却 1**。過去 run が「無音脱落」させた項目が本 run で初めて明示決算された。主な決算:
+
+- **回収**: L03 (= eval 3→4 予約、実ブロック証跡で決算)、L04 (= done-close 実発火、cron 初回自動 close を transcript で確認)、L06/L07 (= #129 worktree / #127 cross-repo が exercised)、L19 (= size 表 SoT は既に一本化済みだった = 決算漏れ)、L13 (= run 5 の無名 defect ⑤-⑦ を保存 script `0b7eb511` から全文復元 = 「復元不能」の反証)。
+- **繰延 (= 恒常制約による)**: L08 (= injection 敵対的陽性 proof が read-only 制約で再繰延)。**これは無音消滅の新しい形**: 恒常制約 + 恒常繰延。次回は繰延回数を追跡し、N 回で「専用 setup を組む or 消却理由を明記」を強制する規則が要る。
+- **narrative 訂正 (= git 実測)**: L05/§15.3 の「直近 close は全て人間の手動一括操作」は**事実誤認**。突合で `1f48814` の author date = 2026-07-14 を確認し、cron 自動 close (07-06T11:12Z) の 8 日後の執筆で、**commit 時点で既に虚偽**と確定。§15.3 に正誤表が要る。
+
+### 16.4 14 日無人運用の自然実験 (= 過去 7 run が測らなかった signal)
+
+「14 日無人」の実体は **machine-off 9-10 日 + 飢餓空転 + 実生産 ~2 夜**で、cron 稼働率は **~24%**。全 rate はこの 3 状態を分母分離しないと無意味。この期間が露呈した、系の律速に関する事実:
+
+1. **系の bottleneck は AI 能力でなく人間応答時間**。Ready 列 3 件が全て needs-human で pick pool が飢餓し、~546 cron session が board 前進ゼロ (= 成果は警告コメント 1 件、消費は cache_read 274M token)。UAT 5 件が 14-18 日滞留、PushNotification 2 通が 13 日未応答。**人間側を測らない評価は系の律速を測っていない**。
+2. **唯一の人間向け interface が誤情報を運びうる**。07-15 の staleness escalation が #124 の needs-human 封止理由を誤診 (= repo mismatch と報告、実際は CI-green deadlock)。助言どおり label を剥がすと既知の無限ループへ回帰する。**「行動の正しさ」と別軸の「人間向け要約の正しさ」は全 8 run で未測定 — 誤った escalation は沈黙より有害**。
+3. **飢餓下でも cadence 不変で固定燃焼**。生産ゼロの 24h 稼働日でも ~$146/日。飢餓検知時に cadence を落とす backoff が無い。稼働 ~6 日で概算 ~$550/14 日。
+4. **CI-green deadlock**: #124 の acceptance 契約 (= CI green) と CI trigger 設計 (= push:main + PR のみ) が構造矛盾で、AI が自己完了不能。pick→bounce を繰り返し needs-human で封止された。契約↔workflow の整合 lint が無い。
+5. **判断の非永続化**: #72 の skip 判定が 24 分後に逆転 pick され実装 chain 1 本を廃棄。stateless な 15 分 run が毎回判断を再導出する系では、skip 判断の永続化率が測れるべき signal。
+6. **健全側の証跡**: 境界外 board 操作 0 / injection 陰性 37/37 / §0 guard は backlog 3 routine の 794 run に 100% 搭載 / dedup 実効 (= escalation spam 0)。**「AI が暴走した」のではなく「人間が bottleneck になった」構図**。
+
+### 16.5 confirmed defect (= 最終、severity 順)
+
+| # | defect | sev | dim | roadmap |
+|---|---|---|---|---|
+| 1 | 07-15 escalation が #124 の封止理由を誤診 (= 唯一の人間 interface の内容が誤り、従うと無限ループ回帰) | high | outer-loop | escalation 生成時に needs-human 付与コメント原文の引用照合を必須化 |
+| 2 | acceptance 契約 (= CI green) と CI trigger 設計 (= PR のみ) の構造矛盾 = AI 自己完了不能 deadlock | high | outer-loop | branch push / workflow_dispatch の CI 経路追加、または branch 段階の CI green を契約から除外 |
+| 3 | cron 産修正 branch 4 本の着地経路欠落 = PR 未作成 14 日、無人期間の新規コードは CI 検査ゼロ | high | outer-loop | draft PR 自動作成を boundary 内に入れる、または当面は人間 UAT 1 回 |
+| 4 | 飢餓 backoff / short-circuit / aging 再送の不在 = 稼働日 ~$146/日 固定燃焼 | high | process | 飢餓検知時 cadence 逓減 + Done 全 CLOSED の安価な先判定 + aging 再通知 |
+| 5 | 破壊的 gh/git denylist 不在 + gh token 過大 scope (= 11 repo 到達) | high | platform | scope 縮小 + settings.json deny に gh/git 破壊系追加 (= 人間 10 分級)。**run 1 から 8 run 未解消の最古 defect** |
+| 6 | CLAUDE_MEMORY_AUTOMATED 計装が設計時点から placebo (= automated 0/456、Bash export が hook process に届かない) | high | platform | hook process から観測可能な経路 (= marker file 等) へ変更 + 修正 issue 起票 |
+| 7 | SKILL.md prose/case source drift が eval gate 素通り (= 変異 exit 0 を両 verify が再現) | high | eval | 修正 `check-case-source.py` (241 行) は完成済み、#120 の UAT 消化 + merge のみで着地 |
+| 8 | 評価 lineage の三重保全不全 (= run 7 記録が未 merge branch のみ / meta doc + script が untracked / §15.3 虚偽未訂正) | high | eval | 評価 branch の PR 化 + untracked 一式 commit + §15.3 正誤表 |
+| 9 | directive doc の stale が稼働中の自動化と逆内容 (= backlog/CLAUDE.md L37 + harness-design §13、修正 issue 無し) | med | context | docs-only 1 行修正 ×2 の即日 PR。既存 doc の実数 stale lint は起票 |
+
+**最古 defect の生存機序 (= H5 の実証)**: #5 の security defect が run 1 から 8 run 生き延びた一因は、platform 次元が配布 parity (= 恒常健全) と security (= 恒常不健全) を同居させ、健全な半分が平均で不健全な半分を救い続けたこと。
+
+### 16.6 手法改革の feedback (= メタ評価提案は機能したか)
+
+- **脱結論化 CTX: ほぼ機能**。L05 の再導出が過去 doc の性格付けを覆し、L13 で他 4 次元の「復元不能」を routing が独力で覆した = 結論継承の遮断を実証。**残る漏れ**: Lead CTX の「14 日を無人運用の自然実験として扱う」という framing 自体が未検証の結論で、probe が「実は稼働 ~6 日」と訂正するまで全 probe を anchor した。**時間的 framing も evidence pointer 化の対象**。
+- **機械台帳: 機能、ただし新死角**。40/40 決算・無音消滅ゼロ達成。だが L08 の「恒常制約 + 恒常繰延」という新しい無音消滅の形が露呈 (= 16.3 参照)。
+- **対称 verify: 実効あり**。under 方向 5 系統の発見 (= L03/L19/L13 + pre-push 実ブロック + drift 修正 branch 自律起草) と over 方向の訂正 (= 13 日→6 日) が両立し theater ではない。
+- **2 判断制: 本 run の最弱部**。A/B が全 6 次元一致・disputes 0。両判断は**同一 probe pool を消費**しており独立なのは解釈だけ。完全一致は「独立確認」でなく上流相関の期待値で、第 2 判断が買った弁別情報は実質ゼロ。probe subset を判断間で分けるか、片方を明示的に敵対役 (= 各次元 ±1 を主張) にし、dispute 率を手法の健全性 metric として追跡する。恒常 0 なら 1 判断 + verify に縮退してコスト回収。
+
+### 16.7 盲点・次元セット・次に効く鍵
+
+- **本 run の盲点 (= 次 run で probe 化)**: (1) **対話 session 層が完全欠落** — 本 run の exercised は全て cron transcript 由来で、harness の本来の入口 (= 対話での task-routing 発火 / intent-clarify の生涯 exercised 回数 ≈ 0) を一度も probe せず。しかも harness dir の session はほぼ評価 run 自身 = 評価が自分の証跡 store を汚染。(2) **memory 生成物の内容監査**: ai-memory の最終 commit = 06-28 (= 22 日 commit ゼロ)、「Basic Memory を Git 管理」の SoT 前提が事実上死んでいる可能性。(3) **escalation の配達検証**: 「人間が 13 日未応答」は通知が届いたことを未検証で前提化 (= 「無視した」と「届かなかった」は修正策が違う)。(4) 非 Claude vendor の消費実態がゼロ検証 (= user の学習目標に直結)。
+- **次元セットの応力**: vector が 3-4 に収束し弁別力が落ちた。本 run の最大発見群 (= human↔AI interface) を所有する次元がなく outer-loop と process に分散した。提案 (= 次元数は増やさず再分割): outer-loop を「自律機構」と「human-interface / throughput」に割る / security は新次元でなく **platform への hard cap** (= 未解消 high security がある限り platform ≦ 3) / economics (= idle burn) はスコアでなく毎 run の tracked metric / memory は context の exercised 面と定義。
+- **次に効く鍵**: (1) Awaiting UAT 3 件 (#120/#123/#125) + needs-human 3 件の人間 clearance = 系の律速の解除。(2) escalation 硬化 (= 引用照合 + aging + backoff) + memory placebo 修正。(3) denylist + token scope 縮小 + injection 陽性 probe。
+
+### 16.8 教訓の追加
+
+- **無人運用の律速は人間側にある**。14 日で board 前進ゼロの原因は AI の故障でなく人間 gate の飽和。**人間応答時間・escalation 内容の正確性・idle burn rate を測らない評価は、系の律速を測っていない** (= 過去 8 run が一度も持たなかった signal class)。
+- **duty-cycle 正規化なしの rate は無意味**。「14 日無人」は machine-off 9-10 日を含み、稼働率は ~24%。加えて transcript の mtime は drift する (= 旧 session が後日 touch される) ため、内部 timestamp のみを正とする測定規則が要る。
+- **placebo は当時不可視な形で landed する**。CLAUDE_MEMORY_AUTOMATED は設計時点から機能していなかったが、run 6 の platform 5 判定時には不可視だった。**スコアの下げが必ずしも劣化を意味しない** — 過去の過大評価の露呈でもある。
+- **2 判断制は probe を分けないと独立でない**。完全一致は独立確認の証拠でなく上流 (= 同一 probe pool) 相関。判断の多重化は入力を分けて初めて弁別情報を生む。
+- **メタ評価 → 適用のループは機能した**。本 run の最大の前進 (= eval のボトルネック突破 + 過小計上の是正 + human-interface signal の発見) は、いずれも前段のメタ評価が指摘した欠陥への直接対処から生まれた。
