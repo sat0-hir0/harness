@@ -402,12 +402,18 @@ Epic #106 の残課題を全 merge した直後に採点。vector = **[4/4/3/4/4
 
 **4 変更すべてコード/ロジックは正しく実装され main に land 済みだが、実運用で発火した証跡 (exercised) はゼロ**:
 
-- #122 done-close: cron enabled (`3-59/15`) だが自動 close の形跡なし。直近の close は全て人間の手動一括操作。
+- #122 done-close: cron enabled (`3-59/15`) だが自動 close の形跡なし。直近の close は全て人間の手動一括操作。 【正誤 (§15.3-E1): この 1 文は事実誤認。 下記 正誤表を参照】
 - #129 worktree 化: skill 本文は実装済みだが、実 session (#72/#119/#122) は全てこのコミット以前に開始し**旧パス (main clone / `backlog-wt-N`) で発火**。
 - #127 repo 解決: land 済みだが exercised 未確認。
 - #119 eval trigger: 4 変更中**唯一 exercised に近い** (code 変異テストで fix が機能することを実地確認、Lead の UAT でも裏取り)。
 
-→ **多層防御の implemented は依然 2/12** (層1 役割分離 / 層12 UAT 品質)。#122/#129 は score theater 回避のため層数の格上げに算入しない (exercised でないため)。
+> **正誤表 §15.3-E1 (= #141 で追記)**: 上記 #122 の「直近の close は全て人間の手動一括操作」は**事実誤認**であり、実態は **done-close cron の初回自動発火**。#122 done-close は landed-only ではなく exercised に該当する。
+>
+> - **根拠**: 本 §15 を含む commit `1f48814` の author date = 2026-07-14 に対し、cron 自動 close は 07-06T11:12Z (= 8 日前)。**執筆時点で既に虚偽**が確定 (= §16.3 narrative 訂正で突合済み)。
+> - **一次証跡**: cron session transcript 11:11:44Z + closedAt の 2 秒 cadence + Issue 上の routine 署名コメント (= §16.3 の L04 回収 / メタ評価 §-D15)。§15.7 の「cron 実発火は read-only で検証不能」も同様に誤り (= transcript は残存し検証可能)。
+> - **含意**: 誤りの方向は**過小計上**。検証装置が過大方向にしか向いておらず、敵対的規律が proven な成果を landed-only に誤格下げした (= メタ評価 H4「evidence-first が自分の証跡保全を怠る自己例外」の一例)。§15.3 直後の「多層防御 implemented 2/12」の count も #122 を exercised に繰り上げる分は本正誤表で補正される (= 元の prose は lineage 保全のため改変しない)。
+
+→ **多層防御の implemented は依然 2/12** (層1 役割分離 / 層12 UAT 品質)。#122/#129 は score theater 回避のため層数の格上げに算入しない (exercised でないため)。 【正誤 §15.3-E1: #122 は exercised に該当するため、この 2/12 は #122 を含めた補正が必要。 元 count は執筆時点の記録として保存】
 
 ### 15.4 confirmed defect と roadmap 判定
 
