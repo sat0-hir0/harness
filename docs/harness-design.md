@@ -215,6 +215,8 @@ stuck で `running` が残るのは意図的 (= 「動いている可能性」 �
 
 boundary skill (= 例: `$issue-execute`) は起動時に label を確認し、 `needs-human` があれば **副作用ゼロで早期停止** する (= branch 作成 / status 遷移 / session コメント / `running` 付与のいずれも実行しない)。
 
+`needs-human` の付与理由 / 封止理由を後続 escalation が人間向けに要約するときは、 §20 の引用照合契約に従う (= 付与コメント原文を引用し、 記憶 / ラベル名から推測しない)。
+
 ## 10. 要求 ↔ branch ↔ session の紐付け
 
 GitHub プロジェクトの場合、 標準機能 (= Issue の Development sidebar、 `gh issue develop`) を使い、 命名規約を自作しない。
@@ -290,6 +292,8 @@ boundary skill (= 例: `$prepare-uat`) が着地させた要求を、 別の sch
 - 真の判断不能 = 「別 repo で repo 名が記録から喪失」 のみ。 session 開始コメント保全でこのケースも大幅に減る。
 
 いずれの verdict でも Completion Check を抜ける際に `running` ラベルを削除する (= 離脱でフラグを下ろす)。
+
+escalate の ⚠️ コメントが過去の判断理由を要約する場合は、 §20 の引用照合契約に従う (= 裏取り不能の根拠を原文引用で示す)。
 
 ### DRY_RUN 安全装置
 
@@ -509,3 +513,30 @@ backlog は複数 product を 1 つの board で扱う (= 現状 limn / harness)
 - child Issue (= 経路 a、 parent なし): product label を **付けない** (= AI が無理に判定しない、 user に確認も急がない。 後から `gh issue edit` で足せる)
 
 product label は **board の filter / search** で活用される (= 「limn 関連の Issue だけ表示」 「harness の Ready を一覧」 等の view 切替)。 label の追加 / 削除は単純な `gh label create` / `gh label delete` で行い、 board 側 field の変更は不要 (= ラベルは Issue に直接付くため、 board の field 設定とは独立)。
+
+## 20. escalation の引用照合契約 (= 人間向け要約の正しさを証跡で縛る)
+
+escalation (= `needs-human` 付与 / stuck 警告 / 裏取り不能 UAT 回し / 陳腐化疑いの人間確認依頼) は **無人運用における唯一の人間向け interface**。 内容が誤ると、 人間はその要約を信じて誤った判断へ誘導される。 「行動の正しさ」 (= board を正しく動かしたか) と 「人間向け要約の正しさ」 (= なぜそう判断したかを正しく伝えたか) は **別軸** であり、 後者は計装されてこなかった。 誤った escalation は沈黙より有害 (= 沈黙なら人間が一次情報を見に行くが、 誤要約は人間を誤った行動へ能動的に押し出す)。
+
+### 原則 (= 過去の判断理由を要約するときは原文に紐づける)
+
+escalation コメントが **過去の判断理由** (= `needs-human` 付与理由 / bounce 理由 / 封止理由) を要約するとき、 要約は当該理由の **source コメント原文からの直接引用に紐づけねばならない**。 記憶 / ラベル名 / 別コメントからの推測で要約してはならない。
+
+理由が複数コメントにまたがって変遷している場合、 **最新の付与コメント (= 現に効いている封止理由) を source とする**。 古い理由が後続コメントで supersede されているのに古い方を引いて要約するのが、 §20 が防ぐ失敗そのもの。
+
+### 必須構成 (= 引用ブロック + 要約の 2 部)
+
+1. **引用ブロック**: 根拠となった原文を code fence 内にそのまま転記する (= source コメントの投稿時刻 / 冒頭接頭辞を併記し、 どのコメントを引いたか特定できるようにする)。
+2. **要約**: 引用に基づく Checker / heartbeat の解釈。 引用ブロックと要約が矛盾する場合は要約を出さず、 「原文を確認せよ」 に留める (= 誤要約を投稿しない)。
+
+### source を特定できない場合 (= 照合不能の可視化)
+
+付与理由の原文コメントが特定できないときは、 要約を推測で埋めず **「付与理由の原文コメントが特定できない (= 引用照合不能)」 と明示する**。 沈黙でも誤要約でもなく、 照合不能そのものを人間に見せる。
+
+### 具体手続きの置き場所
+
+この原則の具体手続き (= gh コマンドによる原文特定 / 引用フォーマット / 接頭辞規約) は **外側レイヤー各 routine の SKILL に置く** (= §4.1 の 「設計原則は SoT、 実行手続きは外側レイヤー」 方針どおり。 backlog では dotconfig scheduled-tasks が担う)。
+
+### 由来 (= #124 の staleness escalation 誤診)
+
+2026-07-15 の staleness escalation が Issue #124 の封止理由を誤診した実例が本契約の起点。 #124 は 2026-07-06 の付与コメントで **「CI-green deadlock (= feature branch push で CI run が発生しない構造)」** を封止理由として記録していたが、 07-15 の escalation は **1 日前に supersede された 07-05 の 「product:harness repo mismatch」 コメント**を引いて 「root cause は #127 で解決済み → `needs-human` を外してよいか」 と人間に依頼した。 これに従って `needs-human` を外すと、 heartbeat が #124 を再 pick → 同じ CI-green の壁で再差し戻し、 という既知の無限ループへ回帰する。 最新の封止理由コメントを引用照合していれば防げた (= §20 が要求する構成)。
