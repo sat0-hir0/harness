@@ -509,3 +509,15 @@ backlog は複数 product を 1 つの board で扱う (= 現状 limn / harness)
 - child Issue (= 経路 a、 parent なし): product label を **付けない** (= AI が無理に判定しない、 user に確認も急がない。 後から `gh issue edit` で足せる)
 
 product label は **board の filter / search** で活用される (= 「limn 関連の Issue だけ表示」 「harness の Ready を一覧」 等の view 切替)。 label の追加 / 削除は単純な `gh label create` / `gh label delete` で行い、 board 側 field の変更は不要 (= ラベルは Issue に直接付くため、 board の field 設定とは独立)。
+
+## 20. CI 経路と branch 段階の検証済み定義 (= eval-gate.yml の trigger 設計)
+
+> §16 / §17 と同じく末尾追記 (= §1〜§19 の連番を動かさない)。
+
+`.github/workflows/eval-gate.yml` は PR と main への push で回る (= `pull_request` / `push: branches: [main]`)。 AI は PR を作らない (= 人間の責務、 §15 「AI 自己判定での PR merge」 不採用と同軸) ため、 feature branch 単独の push では CI が起動しない。
+
+**branch 段階の 「検証済み」 の定義は local lefthook gate (= eval-gate / frontmatter-lint / agent-ref-lint) の pass と test 通過**。 CI green は branch 段階の deliverable ではない。 CI green は PR 段階で人間が確認する事項であり、 §16 の Done 定義 (= PR merge = built-in workflow による Done 遷移) と整合する。
+
+`workflow_dispatch` が eval-gate.yml に存在し、 `gh workflow run eval-gate.yml --ref <branch>` で任意に起動できる。 これは branch 段階でも CI green の客観証跡を得たい場合の opt-in 経路であり、 完了条件には含まれない。 dispatch 実行時は `github.base_ref` が空になるため future-plans lint の `BASE_REF` は `main` に fallback する。 この trigger 設計は [`ADR-0001`](adr/ADR-0001-branch-stage-verified-vs-ci-green.md) (Proposed) で決定事項として記録されている。
+
+feature branch push を trigger に追加しない (= 採用しない選択、 §15 に準ずる)。 追加すると future-plans lint の `base_ref` 解決が破綻し (= push イベントでは `github.base_ref` が常に空)、 かつ local lefthook gate と CI が同じ内容を二重に走らせることになる。

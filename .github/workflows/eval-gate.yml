@@ -8,6 +8,12 @@ name: eval-gate
 on:
   push:
     branches: [main]
+  # AI agents cannot open a PR (human responsibility), so workflow_dispatch is
+  # the explicit-trigger path for running this gate on a feature branch before
+  # a PR exists (backlog #135). It is an opt-in evidence path, not a
+  # branch-stage completion requirement — the branch-stage "verified" bar
+  # stays the local lefthook gate (docs/harness-design.md).
+  workflow_dispatch: {}
   pull_request:
     paths:
       # Superset of the local gate's watch set: eval/** and scripts/*.py are
@@ -57,16 +63,20 @@ jobs:
       - name: agent-ref lint
         run: python scripts/lint-agent-refs.py
       - name: future-plans lint
-        # PR-only: this is a diff check (REF..HEAD) and github.base_ref is
-        # populated on pull_request events but empty on push. On a push to main
-        # there is no base branch to diff against, so origin/${BASE_REF} would
-        # resolve to a malformed `origin/` ref and `git diff origin/..HEAD`
-        # would fail (fatal: ambiguous argument). Doc discipline is a PR-review
-        # concern anyway — finish-task runs the same check before a PR — so
-        # skipping it on direct push loses no real coverage.
-        if: github.event_name == 'pull_request'
+        # PR + dispatch only: this is a diff check (REF..HEAD) and
+        # github.base_ref is populated on pull_request events but empty on
+        # push and on workflow_dispatch. On a push to main there is no base
+        # branch to diff against, so origin/${BASE_REF} would resolve to a
+        # malformed `origin/` ref and `git diff origin/..HEAD` would fail
+        # (fatal: ambiguous argument). Doc discipline is a PR-review concern
+        # anyway — finish-task runs the same check before a PR — so skipping
+        # it on direct push loses no real coverage. workflow_dispatch runs it
+        # because that trigger exists for AI to get branch-stage CI evidence
+        # before a PR exists, and BASE_REF falls back to main so the diff
+        # target resolves the same way finish-task's local check does.
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
         env:
-          BASE_REF: ${{ github.base_ref }}
+          BASE_REF: ${{ github.base_ref || 'main' }}
         # origin/<base> instead of a hardcoded origin/main keeps the diff
         # correct for PRs that target another branch; env-var quoting keeps
         # the branch name out of shell parsing.
