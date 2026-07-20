@@ -14,7 +14,7 @@ AI 開発ハーネス (= universal skill / agent / 設計 doc / 俯瞰図) の�
 
 - **6 skill** (= `task-routing` / `intent-clarify` / `task-slicing` / `wave-status` / `finish-task` / `commit-message`) — どのプロジェクトでも使う入口 + 共通フロー
 - **6 agent** (= `architect` / `fullstack-engineer` / `qa-expert` / `performance-engineer` / `security-auditor` / `technical-writer`) — universal な役割定義
-- **設計 doc** (= [`docs/harness-design.md`](docs/harness-design.md)) — 工学原則 / 多層防御 / システム構成 / workflow / session 透明性 / 採用判断 を 15 節で記述
+- **設計 doc** (= [`docs/harness-design.md`](docs/harness-design.md)) — 工学原則 / 多層防御 / システム構成 / workflow / session 透明性 / 採用判断 を 19 節で記述
 - **俯瞰図 2 枚** (= [`docs/diagrams/`](docs/diagrams/README.md)) — 外側 board lifecycle + 内側 skill chain
 
 プロジェクト固有の skill (= 例: backlog の `issue-from-idea` / `issue-execute` / `prepare-uat`) は **本 repo には置かない**。 各プロジェクト repo 配下 (= 例: `~/code/backlog/skills/`) に置く。
@@ -107,7 +107,7 @@ marketplace を持たず、 成果物の生成までを担う。
 
 | doc | 用途 |
 |---|---|
-| [`docs/harness-design.md`](docs/harness-design.md) | 全体設計仕様 (= 工学原則 / 多層防御 / 構造 / workflow / session 透明性 / 採用判断、 15 節) |
+| [`docs/harness-design.md`](docs/harness-design.md) | 全体設計仕様 (= 工学原則 / 多層防御 / 構造 / workflow / session 透明性 / 採用判断、 19 節) |
 | [`docs/diagrams/`](docs/diagrams/README.md) | 俯瞰図 2 枚 + 解説 (= backlog 側 board lifecycle / 内側 skill chain) |
 
 ## pre-push eval gate

@@ -14,8 +14,8 @@
 > (= §judge、 業界比較は `docs/wip/harness-evaluation-2026-07-02.md` §5.3) を使う。
 
 各 skill の SKILL.md にある Worked example / Use when 代表発話 / Final Report
-スキーマから case を抽出しているため、 追加創作は最小限。 現状 6 skill × 5 case =
-**30 case**。
+スキーマから case を抽出しているため、 追加創作は最小限。 現状 6 skill (= 5 skill × 5 case + task-slicing 6 case) =
+**31 case**。
 
 ## ディレクトリ構成
 
