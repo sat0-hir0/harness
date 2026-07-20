@@ -7,7 +7,17 @@ name: eval-gate
 
 on:
   push:
-    branches: [main]
+    # `main` re-runs the gate post-merge. `**-issue` covers the AI-produced
+    # feature branches ($issue-execute / heartbeat name every branch `<N>-issue`,
+    # harness docs/harness-design.md §16 / backlog #136): those branches are
+    # pushed but never opened as PRs by the AI (PR creation stays a human step,
+    # §15), so without a push trigger they would get zero CI — the exact
+    # "produce fix but never verify it" gap #136 fixes. No `paths:` filter on
+    # push: the full gate is a seconds-fast deterministic run, and a path filter
+    # here would silently skip verification on a feature branch whose only change
+    # is outside the watch set (e.g. a workflow or config edit), reintroducing a
+    # blind spot. main + feature-branch pushes both run the full job set.
+    branches: [main, "**-issue"]
   pull_request:
     paths:
       # Superset of the local gate's watch set: eval/** and scripts/*.py are
@@ -57,16 +67,25 @@ jobs:
       - name: agent-ref lint
         run: python scripts/lint-agent-refs.py
       - name: future-plans lint
-        # PR-only: this is a diff check (REF..HEAD) and github.base_ref is
-        # populated on pull_request events but empty on push. On a push to main
-        # there is no base branch to diff against, so origin/${BASE_REF} would
-        # resolve to a malformed `origin/` ref and `git diff origin/..HEAD`
-        # would fail (fatal: ambiguous argument). Doc discipline is a PR-review
-        # concern anyway — finish-task runs the same check before a PR — so
-        # skipping it on direct push loses no real coverage.
-        if: github.event_name == 'pull_request'
+        # This is a diff check (REF..HEAD) that needs a base branch to diff
+        # against. Two event shapes provide one; a push to main does not:
+        #   - pull_request: github.base_ref = the PR's target branch.
+        #   - push to a feature branch (`**-issue`): no base_ref, but the branch
+        #     is destined for main, so diff against origin/main. This is the
+        #     #136 path — AI feature branches never open a PR, so without it the
+        #     future-plans lint would never run on AI-produced doc/report text.
+        #   - push to main: skipped. There is no base to diff against
+        #     (origin/${BASE_REF} would resolve to a malformed `origin/` and
+        #     `git diff origin/..HEAD` fails with fatal: ambiguous argument),
+        #     and doc discipline is a pre-merge concern that already ran on the
+        #     feature branch and/or PR, so nothing is lost.
+        if: >-
+          github.event_name == 'pull_request' ||
+          (github.event_name == 'push' && github.ref != 'refs/heads/main')
         env:
-          BASE_REF: ${{ github.base_ref }}
+          # base_ref is set on pull_request; on a feature-branch push it is
+          # empty, so fall back to main (the branch these merge into).
+          BASE_REF: ${{ github.base_ref || 'main' }}
         # origin/<base> instead of a hardcoded origin/main keeps the diff
         # correct for PRs that target another branch; env-var quoting keeps
         # the branch name out of shell parsing.

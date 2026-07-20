@@ -509,3 +509,25 @@ backlog は複数 product を 1 つの board で扱う (= 現状 limn / harness)
 - child Issue (= 経路 a、 parent なし): product label を **付けない** (= AI が無理に判定しない、 user に確認も急がない。 後から `gh issue edit` で足せる)
 
 product label は **board の filter / search** で活用される (= 「limn 関連の Issue だけ表示」 「harness の Ready を一覧」 等の view 切替)。 label の追加 / 削除は単純な `gh label create` / `gh label delete` で行い、 board 側 field の変更は不要 (= ラベルは Issue に直接付くため、 board の field 設定とは独立)。
+
+## 20. AI 産 branch の CI 検査 (= feature-branch push トリガー)
+
+> §16〜§19 と同じく末尾追記 (= §1〜§19 の連番を動かさない、 §16 冒頭の deep link 保全ルール)。
+
+**AI が作る feature branch (`<N>-issue`) は、 push された時点で CI (`eval-gate.yml`) が走る**。 これは §16 の stale branch 問題と対をなす: §16 が 「Done なのに未 merge の branch が残る」 不整合を扱うのに対し、 本節は 「AI が push した branch に独立した CI 証跡が付かない」 検査ギャップを扱う。
+
+### 検査ギャップの構造
+
+CI の起動トリガーは元々 `push:[main]` と `pull_request` の 2 つだった。 `$issue-execute` / heartbeat が作る branch は push されるが、 **PR 作成は人間の作業** (= §15 「AI 自己判定での PR merge」 / 「全自動で人間 review を skip する経路」 不採用と同軸で、 PR も AI は開かない)。 その結果、 AI 産 branch は `pull_request` イベントに乗らず、 `push:[main]` にも一致しないため、 サーバ側の独立検査を一切受けない。 local の lefthook pre-push は走るが、 これは push した本人の環境依存であり、 `--no-verify` 迂回や環境差で抜ける余地がある (= 独立証跡にならない)。
+
+### 着地
+
+`eval-gate.yml` の push トリガーに `**-issue` を追加し、 AI 産 branch の push で full job set (= frontmatter-lint / agent-ref-lint / future-plans-lint / fixture-sync) を走らせる。 これにより:
+
+- AI 産 branch に **PR を待たずに** サーバ側の独立 CI 証跡が付く (= 「fix を作る」 と 「fix を検査する」 の間のギャップが閉じる)
+- 人間の PR 作成 / merge は従来どおり (= boundary 不変。 CI は deterministic gate = API key 不要・merge しない ので、 broad に走らせても人間 review 境界を侵さない)
+- future-plans lint は push 時 base branch が無い問題を持つため、 feature-branch push では `origin/main` を base に diff する (= main への push だけは base が無いので従来どおり skip、 PR は `github.base_ref` を使う)
+
+### この着地が閉じないもの (= 残る作業)
+
+本節は **forward** の穴 (= 今後 push される AI 産 branch) を閉じる。 push トリガー追加**以前**に既に push 済みで PR 未作成のまま滞留している branch (= 過去の stale branch) は、 CI が過去 push に遡って走らないため対象外。 これらは人間 UAT 1 回の実施か、 空 commit の再 push で CI を起動して回収する (= 運用判断)。
