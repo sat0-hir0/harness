@@ -28,7 +28,6 @@ finish-task / intent-clarify / commit-message) の YAML 契約 (= Final Report
 
 ## 順序
 
-user 決定 (2026-08-11): 独立セッションにせず、**ow-review のチェーン化セッションに
-組み込んで実施する** (ow-review/docs/skill-chain-2026-08-11.md 参照)。同じ原則の
-適用作業なので同じ頭でやる。本ファイルは監査要件の SoT として残す。
-harness 側の修正は user 承認後に harness リポで別コミット。
+user 決定 (2026-08-11): ow-review 深度契約 → ow-review チェーン化 → **本件** →
+ULT/統合タイムライン。ow-review のチェーン化 (ow-review/docs/skill-chain-2026-08-11.md)
+と原則を共有するので、本件の修正が入ったらそちらの前提にも反映する。
