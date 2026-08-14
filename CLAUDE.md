@@ -46,7 +46,7 @@ universal な skill / agent / 設計 doc を 1 repo に集約し、 skillshare �
 | repo | 役割 |
 |---|---|
 | harness | AI 開発ハーネスの SoT (= universal skill/agent/設計 doc を集約、 skillshare で配布) |
-| backlog | やりたいこと / Issue の入口 (= Projects v2 で Issue lifecycle を AI 駆動、 UAT/PR は人間) |
+| backlog | やりたいこと / Issue の入口 (= Projects v2 で Issue lifecycle を AI 駆動、 UAT 判定 / PR merge は人間) |
 | ai-memory | user-model / 協働スタイル / project 横断 private context の実体 (= Basic Memory を Git 管理) |
 | dotconfig | chezmoi の dotfiles source (= 環境再現 + scheduled task 定義) |
 | limn | 思考整理ツール (= block editing / keyboard-first / .md storage / Rust) |

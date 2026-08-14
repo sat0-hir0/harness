@@ -426,6 +426,16 @@ unmerged なまま Done column に置かれた card は不整合である。 §9
 
 したがって差し戻しは、 fail 理由コメントに **加えて**、 Issue 本文へ 「**差し戻し: 必須 deliverable**」 セクションを追記することを必須とする。 内容は (1) 再実装が満たすべき deliverable の列挙、 (2) 各 deliverable の受け入れ確認 (= acceptance check、 再実装 session が自己検証できる形)。 コメントは経緯の証跡、 本文追記は次 session への確実な入力、 と役割を分ける。
 
+### 指摘チャネルの二層構造 (= PR 行コメント + 本文追記)
+
+差し戻し指摘は 2 チャネルに分かれる。 起点は draft PR の Files changed 行コメント (= boundary skill `$prepare-uat` が UAT 準備時に draft PR を作る)。 file:line の指摘をソース上にその場で残せるため、 Issue コメントへの手書き転記が不要になる。
+
+draft PR は指摘の起点であって、 ready 化 / merge は人間専任である (= §15/§16 不変)。
+
+PR 行コメントだけでは再実装 session に確実に消費される保証がない (= 本文追記が確実な入力である根拠は本節冒頭の backlog#82 実証)。 差し戻し確定時は、 PR 行コメントの指摘を Issue 本文 「差し戻し: 必須 deliverable」 に畳み込むことを維持する。
+
+役割分担は次の通り: PR 行コメント = 指摘の起点かつ経緯の証跡、 Issue 本文追記 = 再実装 session への確実な入力。 再実装 session は本文追記を主入力とし、 `gh api repos/<owner/repo>/pulls/<PR>/comments` で原文も辿れる。
+
 ## 18. 階層 Issue 構造 (= Epic + sub-issue、 外側レイヤーの仕様)
 
 > §16 と同じく末尾追記 (= 既存節の連番を動かさない)。
