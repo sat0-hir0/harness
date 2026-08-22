@@ -50,5 +50,6 @@ universal な skill / agent / 設計 doc を 1 repo に集約し、 skillshare �
 | ai-memory | user-model / 協働スタイル / project 横断 private context の実体 (= Basic Memory を Git 管理) |
 | dotconfig | chezmoi の dotfiles source (= 環境再現 + scheduled task 定義) |
 | limn | 思考整理ツール (= block editing / keyboard-first / .md storage / Rust) |
+| ow-coach | OW2 の録画と統計から試合コーチング HTML を生成 (= Python) |
 | ow-my-coach | Overwatch 2 向け Overwolf in-game コーチングアプリ (= TypeScript) |
 | youtube-subtitle | YouTube 字幕取得ローカル Web アプリ (= Python / FastAPI) |

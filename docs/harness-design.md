@@ -484,7 +484,7 @@ child Issue 本文の form (= `idea.yml`) と異なり、 Epic は `### Executio
 
 ## 19. product label 設計 (= 横断 product の識別、 外側レイヤーの仕様)
 
-backlog は複数 product を 1 つの board で扱う (= 現状 limn / harness)。 各 Issue が **どの product 由来か** を識別する仕組みとして `product:*` ラベルを使う。
+backlog は複数 product を 1 つの board で扱う (= 現状 limn / harness / dotconfig / ow-coach)。 各 Issue が **どの product 由来か** を識別する仕組みとして `product:*` ラベルを使う。
 
 ### ラベル一覧 (= 現状)
 
@@ -492,6 +492,8 @@ backlog は複数 product を 1 つの board で扱う (= 現状 limn / harness)
 |---|---|
 | `product:limn` | limn (= keyboard-first Markdown editor) 関連 |
 | `product:harness` | harness (= AI development harness) 関連 |
+| `product:dotconfig` | dotconfig (= chezmoi dotfiles / scheduled task 定義) 関連 |
+| `product:ow-coach` | ow-coach (= OW2 録画 + 統計から試合コーチング HTML 生成) 関連 |
 
 ### 付与経路 (= 二系統)
 
