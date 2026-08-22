@@ -40,7 +40,8 @@ jobs:
   # skill / agent descriptions: reject unsafe plain scalars and descriptions
   # at the ~1,535-char live render cap, warn over 1,400) + agent-ref-lint,
   # plus the check-future-plans doc-discipline check that locally runs via
-  # finish-task. All three are stdlib-only (no pip install).
+  # finish-task, plus that check's own test suite. All four steps are
+  # stdlib-only (no pip install).
   lints:
     runs-on: ubuntu-latest
     steps:
@@ -71,6 +72,12 @@ jobs:
         # correct for PRs that target another branch; env-var quoting keeps
         # the branch name out of shell parsing.
         run: python scripts/check-future-plans.py --base "origin/${BASE_REF}"
+      - name: future-plans lint self-test
+        # Detection-power / no-false-positive / self-reference-scope test for
+        # check-future-plans.py itself. Runs on every push and PR (not diff-scoped,
+        # so github.base_ref emptiness on push does not apply here). stdlib-only,
+        # same as the other three steps in this job.
+        run: python eval/scripts/test_check_future_plans.py
 
   # Twin of lefthook's eval-gate (scripts/eval-gate.py). CI runs the full
   # fixture set instead of replicating eval-gate.py's changed-file -> target

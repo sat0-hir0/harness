@@ -166,6 +166,8 @@ grep の対象は 5 種類: (1) TODO / FIXME (Step 4-1)、 (2) `#[ignore]` / xfa
 
   exit code: `0` = 違反なし、 `1` = 違反検出 (= 行と category を stdout に列挙)、 `2` = invocation 失敗。
 
+  **言語 scope**: `.py` は source-grammar 扱い (= コメント / docstring / f-string の panic message を見落とさない)。 それ以外は markdown-grammar の除外のみ適用 — quoted-example 除外は文字列 / panic message 経由で `.rs` / `.ts` / `.js` にも及ぶ (`panic!(...)` / `#[ignore = "..."]`)、 heading 除外 (行頭 `#`) は `.sh` / `.yml` 等の `#`-comment 言語のみに及ぶ (`.rs`/`.ts`/`.js` の `//` は対象外)。 `OK` は「この言語で十分」を意味しない。
+
   vendor の `scripts/` が無い場合 (= skillshare extras 未設定 / 別環境) の 2 段 fallback:
   1. harness repo が clone 済 (= `~/code/harness/` 等) なら `python ~/code/harness/scripts/check-future-plans.py` を直接呼ぶ
   2. それも無い場合は下記 fallback (= 手動 grep) に落とす
